@@ -69,7 +69,7 @@ export function readTemplate(value: unknown) {
   const marginInches = number(page.marginInches, "page.marginInches", nonnegative, "a nonnegative number");
   const overlapInches = number(page.overlapInches, "page.overlapInches", nonnegative, "a nonnegative number");
   if (style !== "square") throw new Error("This prototype supports square grids only.");
-  if (rows !== 1 || columns !== 1) throw new Error("This prototype supports a 1 × 1 page array only.");
+  if (rows * columns > 100) throw new Error("The page array cannot exceed 100 sheets.");
   const [shortEdge, longEdge] = pageSizes[size];
   const [pageWidth, pageHeight] = orientation === "portrait" ? [shortEdge, longEdge] : [longEdge, shortEdge];
   const margin = marginInches * 72;
@@ -83,7 +83,7 @@ export function readTemplate(value: unknown) {
   }
 
   return {
-    pageWidth, pageHeight, margin, spacing,
+    pageWidth, pageHeight, margin, spacing, rows, columns, overlap: overlapInches * 72,
     mapWidth: (worldWidthFeet / 5) * spacing,
     rotation, offsetX, offsetY,
     lineStyle: { thickness, color: colors[color], opacity, dashArray: dashArrays[lineStyle] },

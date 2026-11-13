@@ -51,7 +51,7 @@ export default {
       throw failure;
     }
 
-    const { pageWidth, pageHeight, margin, spacing, mapWidth, rotation, offsetX, offsetY, lineStyle } = template;
+    const { pageWidth, pageHeight, margin, spacing, rows, columns, overlap, mapWidth, rotation, offsetX, offsetY, lineStyle } = template;
     const pdf = await PDFDocument.create();
     const bytes = await upload.arrayBuffer();
     let image;
@@ -70,43 +70,65 @@ export default {
     }
     const printableWidth = pageWidth - 2 * margin;
     const printableHeight = pageHeight - 2 * margin;
-    if (mapWidth > printableWidth || mapHeight > printableHeight) {
-      return error("The JPG does not fit on the printable sheet at the requested scale.", 422);
+    const stepX = printableWidth - overlap;
+    const stepY = printableHeight - overlap;
+    const canvasWidth = printableWidth + (columns - 1) * stepX;
+    const canvasHeight = printableHeight + (rows - 1) * stepY;
+    if (mapWidth > canvasWidth || mapHeight > canvasHeight) {
+      return error("The JPG does not fit on the assembled printable canvas at the requested scale.", 422);
     }
 
-    const page = pdf.addPage([pageWidth, pageHeight]);
-    page.drawImage(image, {
-      x: (pageWidth - mapWidth) / 2,
-      y: (pageHeight - mapHeight) / 2,
-      width: mapWidth,
-      height: mapHeight,
-    });
-
-    const top = pageHeight - margin;
+    const mapLeft = (canvasWidth - mapWidth) / 2;
+    const mapTop = (canvasHeight - mapHeight) / 2;
     const angle = (rotation % 360) * Math.PI / 180;
     const cos = Math.cos(angle);
     const sin = Math.sin(angle);
-    const diagonal = Math.hypot(printableWidth, printableHeight);
-    page.pushOperators(pushGraphicsState(), rectangle(margin, margin, printableWidth, printableHeight), clip(), endPath());
-    // Grid offsets follow the rotated axes from the printable area's top-left corner.
-    for (const { x, y, offset } of [{ x: cos, y: -sin, offset: offsetX }, { x: -sin, y: -cos, offset: offsetY }]) {
-      const widthProjection = printableWidth * x;
-      const heightProjection = -printableHeight * y;
-      const low = Math.min(0, widthProjection) + Math.min(0, heightProjection);
-      const high = Math.max(0, widthProjection) + Math.max(0, heightProjection);
-      const phase = offset % 1;
-      for (let i = Math.ceil(low / spacing - phase); i <= Math.floor(high / spacing - phase); i++) {
-        const distance = (i + phase) * spacing;
-        const centerX = margin + distance * x;
-        const centerY = top + distance * y;
-        page.drawLine({
-          start: { x: centerX - diagonal * y, y: centerY + diagonal * x },
-          end: { x: centerX + diagonal * y, y: centerY - diagonal * x },
-          ...lineStyle,
-        });
+    const diagonal = Math.hypot(canvasWidth, canvasHeight);
+    const top = pageHeight - margin;
+    const gridAxes = [
+      { x: cos, y: -sin, phase: offsetX % 1 },
+      { x: -sin, y: -cos, phase: offsetY % 1 },
+    ];
+
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < columns; col++) {
+        const sheetLeft = col * stepX;
+        const sheetTop = row * stepY;
+        const page = pdf.addPage([pageWidth, pageHeight]);
+        page.pushOperators(pushGraphicsState(), rectangle(margin, margin, printableWidth, printableHeight), clip(), endPath());
+
+        if (mapLeft < sheetLeft + printableWidth && mapLeft + mapWidth > sheetLeft &&
+            mapTop < sheetTop + printableHeight && mapTop + mapHeight > sheetTop) {
+          page.drawImage(image, {
+            x: margin + mapLeft - sheetLeft,
+            y: top - (mapTop - sheetTop) - mapHeight,
+            width: mapWidth,
+            height: mapHeight,
+          });
+        }
+
+        // Use the same canvas origin and line endpoints on each sheet so grid
+        // positions and dash phases agree throughout the overlap.
+        for (const { x, y, phase } of gridAxes) {
+          const sheetProjection = sheetLeft * x - sheetTop * y;
+          const widthProjection = printableWidth * x;
+          const heightProjection = -printableHeight * y;
+          const low = sheetProjection + Math.min(0, widthProjection) + Math.min(0, heightProjection);
+          const high = sheetProjection + Math.max(0, widthProjection) + Math.max(0, heightProjection);
+          for (let i = Math.ceil(low / spacing - phase); i <= Math.floor(high / spacing - phase); i++) {
+            const distance = (i + phase) * spacing;
+            const centerX = margin - sheetLeft + distance * x;
+            const centerY = top + sheetTop + distance * y;
+            page.drawLine({
+              start: { x: centerX - diagonal * y, y: centerY + diagonal * x },
+              end: { x: centerX + diagonal * y, y: centerY - diagonal * x },
+              ...lineStyle,
+            });
+          }
+        }
+        page.pushOperators(popGraphicsState());
       }
     }
-    page.pushOperators(popGraphicsState());
 
     const iso = new Date().toISOString();
     const timestamp = iso.slice(0, 19).replace("T", "_").replace(/[-:]/g, "");
