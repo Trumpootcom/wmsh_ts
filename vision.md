@@ -43,23 +43,29 @@ Both options use the same template schema and rendering engine.
 
 ## 3. Template Configuration
 
-The template defines the following settings.
+Every field shown in the example is required. A missing field is a validation error. The uploaded JSON and R2 templates follow the same rule. For square grids, include `grid.isoAngleDegrees` with the value `null`.
 
 | Parameter | Description |
 |---|---|
 | `worldWidthFeet` | Physical world width represented by the image |
-| `gridStyle` | `square` or `iso` |
-| `isoAngleDegrees` | Isometric grid angle, required for ISO grids |
-| `gridRotationDegrees` | Grid rotation |
-| `gridOffsetX` | Horizontal grid offset in cell-spacing units |
-| `gridOffsetY` | Vertical grid offset in cell-spacing units |
-| `inchesPerFiveFeet` | Printed inches representing five world feet |
-| `gridLineStyle` | `solid`, `dash1`, `dash2`, `dash3` |
-| `gridColor` | Named grid color |
-| `pageSize` | `letter`, `ledger`, with extensibility for additional sizes |
-| `pageOrientation` | `portrait` or `landscape` |
-| `pageRows` | Number of rows in the page array |
-| `pageColumns` | Number of columns in the page array |
+| `grid.style` | `square` or `iso` |
+| `grid.isoAngleDegrees` | Isometric grid angle for ISO grids, or `null` for square grids |
+| `grid.rotationDegrees` | Grid rotation |
+| `grid.offsetX` | Horizontal grid offset in cell-spacing units |
+| `grid.offsetY` | Vertical grid offset in cell-spacing units |
+| `grid.inchesPerFiveFeet` | Printed inches representing five world feet |
+| `grid.lineStyle` | `solid`, `dash1`, `dash2`, `dash3` |
+| `grid.color` | Named grid color |
+| `grid.lineWidthPoints` | Grid stroke width in PDF points |
+| `grid.opacity` | Grid stroke opacity from 0 to 1 |
+| `grid.extent` | `printableCanvas` in version 1, including areas without artwork |
+| `imagePlacement` | `center` in version 1, relative to the assembled printable canvas |
+| `page.size` | `letter` or `ledger` |
+| `page.orientation` | `portrait` or `landscape` |
+| `page.rows` | Number of rows in the page array |
+| `page.columns` | Number of columns in the page array |
+| `page.marginInches` | Margin on each edge of each sheet |
+| `page.overlapInches` | Overlap between adjacent sheets |
 
 ### Example Template
 
@@ -68,6 +74,7 @@ The template defines the following settings.
   "schemaVersion": 1,
   "name": "80 Foot Square Map",
   "worldWidthFeet": 80,
+  "imagePlacement": "center",
   "grid": {
     "style": "square",
     "isoAngleDegrees": null,
@@ -76,26 +83,23 @@ The template defines the following settings.
     "offsetY": 0,
     "inchesPerFiveFeet": 1,
     "lineStyle": "solid",
-    "color": "black"
+    "color": "black",
+    "lineWidthPoints": 0.5,
+    "opacity": 0.6,
+    "extent": "printableCanvas"
   },
   "page": {
     "size": "letter",
     "orientation": "landscape",
     "rows": 3,
-    "columns": 2
+    "columns": 2,
+    "marginInches": 0.25,
+    "overlapInches": 0.125
   }
 }
 ```
 
-### Default Print Settings
-
-Unless otherwise specified by a future schema version:
-
-- Outer page margin: 0.25 inches
-- Adjacent sheet overlap: 0.125 inches
-- Image placement: centered within the assembled printable canvas
-- Grid: continuous across all pages, including areas without artwork
-- World height: derived from the source image's aspect ratio
+World height is calculated from the source image's aspect ratio.
 
 The physical image dimensions are determined by `worldWidthFeet` and `inchesPerFiveFeet`. The Worker must not silently change the requested print scale to make the image fit.
 
@@ -104,7 +108,7 @@ The physical image dimensions are determined by `worldWidthFeet` and `inchesPerF
 The interactive `vtt_slicer` exporter used the image dimensions to determine the page count and placed the image at the upper left of the page array. Headless WMS centers the image in a page array whose dimensions are set independently by the template.
 
 - **Image size.** Printed width in inches is `worldWidthFeet / 5 × inchesPerFiveFeet`. Printed height is the printed width multiplied by the JPG's pixel height divided by its pixel width. For example, an 80-foot-wide map at 1 inch per 5 feet prints 16 inches wide.
-- **Page array.** The template specifies Letter or Ledger, portrait or landscape, and the exact number of rows and columns. For each axis, the assembled printable span is the sheet count times the printable sheet span, minus 0.125 inches for each join. The printable sheet span excludes the 0.25-inch margins on both sides.
+- **Page array.** The template specifies Letter or Ledger, portrait or landscape, and the exact number of rows and columns. For each axis, the assembled printable span is the sheet count times the printable sheet span, minus `page.overlapInches` for each join. The printable sheet span subtracts twice `page.marginInches` from the sheet span.
 - **Placement.** Center the image once in the assembled printable canvas, with equal space on opposite sides along each axis. Each sheet shows its portion of that canvas. If the image exceeds either canvas dimension, return a fit error at the requested scale.
 
 ## 4. Rendering Behavior
@@ -117,7 +121,7 @@ The Worker performs the following operations:
 4. Calculate the assembled printable canvas from the page size, orientation, margins, overlap, and page array.
 5. Confirm that the image fits within the available canvas.
 6. Center the image within the assembled canvas.
-7. Generate the requested grid using the specified style, angle, rotation, offsets, scale, line style, and color.
+7. Generate the requested grid using the specified style, angle, rotation, offsets, scale, line style, color, stroke width, and opacity.
 8. Extend the grid across the entire printable canvas, including areas beyond the image.
 9. Slice the assembled canvas into individual pages while preserving alignment and overlap.
 10. Generate and return the PDF.
@@ -150,7 +154,7 @@ Example:
 
 `20261113_151621.pdf`
 
-The timestamp uses UTC by default to avoid ambiguity between server and client time zones.
+The service generates the filename timestamp in UTC.
 
 The PDF is returned directly to the requesting client with:
 

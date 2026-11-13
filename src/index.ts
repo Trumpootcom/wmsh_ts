@@ -1,9 +1,5 @@
-import { PageSizes, PDFDocument, rgb } from "pdf-lib";
-
-const pointsPerInch = 72;
-const margin = pointsPerInch / 4;
-const [pageWidth, pageHeight] = PageSizes.Letter;
-const mapWidth = 8 * pointsPerInch;
+import { clip, endPath, PDFDocument, popGraphicsState, pushGraphicsState, rectangle } from "pdf-lib";
+import { readTemplate } from "./template";
 
 function error(message: string, status: number, headers?: HeadersInit) {
   return Response.json({ error: message }, { status, headers });
@@ -33,6 +29,29 @@ export default {
       return error("Upload exactly one JPG file in the image field.", 400);
     }
 
+    const templates = form.getAll("template_file");
+    const [templateFile] = templates;
+    if (form.has("template_alias")) {
+      return error("This prototype accepts an uploaded template_file only.", 400);
+    }
+    if (templates.length !== 1 || typeof templateFile === "string" || !templateFile?.size) {
+      return error("Upload exactly one JSON file in the template_file field.", 400);
+    }
+    let json: unknown;
+    try {
+      json = JSON.parse(await templateFile.text());
+    } catch {
+      return error("template_file must contain valid JSON.", 400);
+    }
+    let template;
+    try {
+      template = readTemplate(json);
+    } catch (failure) {
+      if (failure instanceof Error) return error(failure.message, 422);
+      throw failure;
+    }
+
+    const { pageWidth, pageHeight, margin, spacing, mapWidth, rotation, offsetX, offsetY, lineStyle } = template;
     const pdf = await PDFDocument.create();
     const bytes = await upload.arrayBuffer();
     let image;
@@ -42,15 +61,20 @@ export default {
       return error("The image field must contain a readable JPG.", 422);
     }
 
-    const mapHeight = (mapWidth * image.height) / image.width;
-    if (!Number.isFinite(mapHeight) || mapHeight <= 0) {
+    if (image.width <= 0 || image.height <= 0) {
       return error("The JPG has invalid dimensions.", 422);
     }
-    if (mapHeight > pageHeight - 2 * margin) {
-      return error("The JPG is too tall for Letter at the fixed 8-inch print width.", 422);
+    const mapHeight = mapWidth * (image.height / image.width);
+    if (mapWidth <= 0 || mapHeight <= 0) {
+      return error("The requested scale produces invalid map dimensions.", 422);
+    }
+    const printableWidth = pageWidth - 2 * margin;
+    const printableHeight = pageHeight - 2 * margin;
+    if (mapWidth > printableWidth || mapHeight > printableHeight) {
+      return error("The JPG does not fit on the printable sheet at the requested scale.", 422);
     }
 
-    const page = pdf.addPage(PageSizes.Letter);
+    const page = pdf.addPage([pageWidth, pageHeight]);
     page.drawImage(image, {
       x: (pageWidth - mapWidth) / 2,
       y: (pageHeight - mapHeight) / 2,
@@ -58,15 +82,31 @@ export default {
       height: mapHeight,
     });
 
-    const right = pageWidth - margin;
     const top = pageHeight - margin;
-    const lineStyle = { thickness: 0.5, color: rgb(0, 0, 0), opacity: 0.6 };
-    for (let x = margin; x <= right; x += pointsPerInch) {
-      page.drawLine({ start: { x, y: margin }, end: { x, y: top }, ...lineStyle });
+    const angle = (rotation % 360) * Math.PI / 180;
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    const diagonal = Math.hypot(printableWidth, printableHeight);
+    page.pushOperators(pushGraphicsState(), rectangle(margin, margin, printableWidth, printableHeight), clip(), endPath());
+    // Grid offsets follow the rotated axes from the printable area's top-left corner.
+    for (const { x, y, offset } of [{ x: cos, y: -sin, offset: offsetX }, { x: -sin, y: -cos, offset: offsetY }]) {
+      const widthProjection = printableWidth * x;
+      const heightProjection = -printableHeight * y;
+      const low = Math.min(0, widthProjection) + Math.min(0, heightProjection);
+      const high = Math.max(0, widthProjection) + Math.max(0, heightProjection);
+      const phase = offset % 1;
+      for (let i = Math.ceil(low / spacing - phase); i <= Math.floor(high / spacing - phase); i++) {
+        const distance = (i + phase) * spacing;
+        const centerX = margin + distance * x;
+        const centerY = top + distance * y;
+        page.drawLine({
+          start: { x: centerX - diagonal * y, y: centerY + diagonal * x },
+          end: { x: centerX + diagonal * y, y: centerY - diagonal * x },
+          ...lineStyle,
+        });
+      }
     }
-    for (let y = top; y >= margin; y -= pointsPerInch) {
-      page.drawLine({ start: { x: margin, y }, end: { x: right, y }, ...lineStyle });
-    }
+    page.pushOperators(popGraphicsState());
 
     const iso = new Date().toISOString();
     const timestamp = iso.slice(0, 19).replace("T", "_").replace(/[-:]/g, "");
