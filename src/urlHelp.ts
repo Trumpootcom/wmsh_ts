@@ -10,12 +10,12 @@ const descriptions: Record<keyof typeof aliases, string> = {
   gstyle: "square or iso",
   gangle: "15 to 90 for ISO, null for square",
   grot: "Counterclockwise rotation in degrees",
-  gx: "X offset in cell units, from -1.0 to 1.0 (wraps every cell)",
-  gy: "Y offset in cell units, from -1.0 to 1.0 (wraps every cell)",
+  gx: "X offset in cell units, from -1.0 to 1.0",
+  gy: "Y offset in cell units, from -1.0 to 1.0",
   gscale: "Printed inches per five world feet",
-  gline: "solid, dash-1, dash-2, dash-3, dash-4, dash-5, dash-6,\n" +
+  gline: "solid, dash-1, dash-2, dash-3, dash-4, dash-5, dash-6, " +
     "dash-8, dash-10, dash-16, corners, or none",
-  gcolor: "black, gray, white, diff (inversion), or contrast (adaptive inversion)",
+  gcolor: "black, gray, white, diff, or contrast",
   gpt: "Stroke width in PDF points",
   gopacity: "0 (transparent) to 1 (opaque)",
   gextent: "printableCanvas",
@@ -27,17 +27,48 @@ const descriptions: Record<keyof typeof aliases, string> = {
   poverlap: "Overlap per join in inches",
 };
 
-function row(alias: string, field: string, value: string, description: string): string {
-  const prefix = alias.padEnd(11) + field.padEnd(24) + value.padEnd(19);
-  return prefix + description.replaceAll("\n", "\n" + " ".repeat(prefix.length));
+const columnWidths = [10, 23, 18, 49];
+
+function border(left: string, join: string, right: string): string {
+  return left + columnWidths.map((width) => "─".repeat(width + 2)).join(join) + right;
 }
 
-const table = Object.entries(aliases).map(([alias, [field]]) => {
+function row(alias: string, field: string, value: string, description: string): string {
+  const lines = description.split("\n").flatMap((paragraph) => {
+    const wrapped: string[] = [];
+    let line = "";
+    for (const word of paragraph.split(" ")) {
+      if (line && line.length + 1 + word.length > columnWidths[3]) {
+        wrapped.push(line);
+        line = word;
+      } else {
+        line = line ? line + " " + word : word;
+      }
+    }
+    return [...wrapped, line];
+  });
+  return lines.map((line, index) => {
+    const cells = index === 0 ? [alias, field, value, line] : ["", "", "", line];
+    return "│ " + cells.map((cell, column) => cell.padEnd(columnWidths[column])).join(" │ ") + " │";
+  }).join("\n");
+}
+
+const rows = { Global: [] as string[], Grid: [] as string[], Page: [] as string[] };
+for (const [alias, [field]] of Object.entries(aliases)) {
   const value = field.split(".").reduce<unknown>(
     (parent, key) => (parent as Record<string, unknown>)[key], defaults,
   );
-  return row(alias, field, alias === "name" ? "name" : String(value), descriptions[alias as keyof typeof aliases]);
-}).join("\n");
+  const group = field.startsWith("grid.") ? "Grid" : field.startsWith("page.") ? "Page" : "Global";
+  rows[group].push(row(alias, field, alias === "name" ? "name" : String(value), descriptions[alias as keyof typeof aliases]));
+}
+const divider = border("├", "┼", "┤");
+const table = [
+  border("┌", "┬", "┐"),
+  row("Parameter", "JSON field", "Default", "Description or allowed values"),
+  divider,
+  Object.values(rows).map((lines) => lines.join("\n")).join("\n" + divider + "\n"),
+  border("└", "┴", "┘"),
+].join("\n");
 
 export const urlHelp = `HEADLESS WMS URL PARAMETERS
 
@@ -50,10 +81,7 @@ titled overview page.
 Use curl on macOS or Linux. Replace map.png with your image path.
 Add -F "template_file=@template.json" to use a complete custom template.
 Overrides apply to either template for the current request.
-The bundled template includes the overview. Custom templates can set
-overview to true in JSON or use the overview=1 override.
 
-${row("Parameter", "JSON field", "Default", "Description or allowed values")}
 ${table}
 
 Quote the full URL and join multiple parameters with &. Use each alias
