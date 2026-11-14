@@ -74,7 +74,11 @@
         <legend>Grid</legend>
         <label>
           <span>grid.style <small>gstyle</small></span>
-          <select name="gstyle"><option selected>square</option><option>iso</option></select>
+          <select name="gstyle"><option value="rect">Rect</option><option value="hex">Hex</option></select>
+        </label>
+        <label>
+          <span>grid.iso <small>giso</small></span>
+          <select name="giso"><option value="false">Off</option><option value="true">On</option></select>
         </label>
         <label>
           <span>grid.isoAngleDegrees <small>gangle</small></span>
@@ -143,10 +147,11 @@
           <span>page.overlapInches <small>poverlap</small></span>
           <input name="poverlap" value="0.125" type="number" min="0" max="0.5" step="0.05" required>
         </label>
+        <label>
+          <span>page.overview <small>overview</small></span>
+          <select name="overview"><option value="0">Off</option><option value="1" selected>On</option></select>
+        </label>
       </fieldset>
-      <label>Overview page
-        <select name="overview"><option value="0">Off</option><option value="1" selected>On</option></select>
-      </label>
       <div class="submit"><button>Render PDF</button></div>
     </form>
   </aside>
@@ -162,7 +167,7 @@
   const preview = document.querySelector("#preview");
   const download = document.querySelector("#download");
   const button = form.querySelector("button");
-  const style = form.elements.gstyle;
+  const iso = form.elements.giso;
   const angle = form.elements.gangle;
   let pdfUrl;
   const renderer = document.querySelector("#renderer");
@@ -184,11 +189,11 @@
   }
 
   function updateAngle() {
-    angle.disabled = style.value === "square";
+    angle.disabled = iso.value === "false";
     angle.required = !angle.disabled;
     if (!angle.disabled && !angle.value) angle.value = "60";
   }
-  style.addEventListener("change", updateAngle);
+  iso.addEventListener("change", updateAngle);
   updateAngle();
 
   function decimal(value) {
@@ -220,7 +225,7 @@
     for (const input of form.querySelectorAll('input[type="number"]:enabled')) {
       params.set(input.name, decimal(input.value));
     }
-    if (style.value === "square") params.set("gangle", "null");
+    if (iso.value === "false") params.set("gangle", "null");
     const fileName = image.name.replace(/\.[^.]+$/, "") + ".pdf";
     button.disabled = true;
     status.textContent = "Rendering…";

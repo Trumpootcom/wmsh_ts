@@ -16,8 +16,9 @@ Replace the JPG path as needed. Add `-F "template_file=@template.json"` to use y
 <tr><td><code>wid</code></td><td><code>worldWidthFeet</code></td><td><code>160</code></td><td>World width in feet</td></tr>
 <tr><td><code>name</code></td><td><code>name</code></td><td><code>name</code></td><td>Template name</td></tr>
 <tr><td><code>place</code></td><td><code>imagePlacement</code></td><td><code>center</code></td><td><code>center</code></td></tr>
-<tr><td><code>gstyle</code></td><td><code>grid.style</code></td><td><code>square</code></td><td><code>square</code> or <code>iso</code></td></tr>
-<tr><td><code>gangle</code></td><td><code>grid.isoAngleDegrees</code></td><td><code>null</code></td><td><code>15</code> to <code>90</code> for ISO, <code>null</code> for square</td></tr>
+<tr><td><code>gstyle</code></td><td><code>grid.style</code></td><td><code>rect</code></td><td><code>rect</code> or <code>hex</code></td></tr>
+<tr><td><code>giso</code></td><td><code>grid.iso</code></td><td><code>false</code></td><td><code>true</code> for projection or <code>false</code> for regular cells</td></tr>
+<tr><td><code>gangle</code></td><td><code>grid.isoAngleDegrees</code></td><td><code>null</code></td><td><code>15</code> to <code>90</code> with projection on, <code>null</code> with projection off</td></tr>
 <tr><td><code>grot</code></td><td><code>grid.rotationDegrees</code></td><td><code>0</code></td><td>Counterclockwise rotation in degrees</td></tr>
 <tr><td><code>gx</code></td><td><code>grid.offsetX</code></td><td><code>0</code></td><td>X offset in cell units. Range <code>-1.0</code> to <code>1.0</code></td></tr>
 <tr><td><code>gy</code></td><td><code>grid.offsetY</code></td><td><code>0</code></td><td>Y offset in cell units. Range <code>-1.0</code> to <code>1.0</code></td></tr>
@@ -36,4 +37,4 @@ Replace the JPG path as needed. Add `-F "template_file=@template.json"` to use y
 </tbody>
 </table>
 
-Quote the URL, join parameters with `&`, and use each alias once. Unknown, repeated, or invalid overrides return HTTP 422. Use `gstyle=iso&gangle=60` to switch to ISO, or `gstyle=square&gangle=null` to switch back.
+Quote the URL, join parameters with `&`, and use each alias once. Unknown, repeated, or invalid overrides return HTTP 422. Use `gstyle=rect&giso=true&gangle=60` to switch to ISO, or `giso=false&gangle=null` to switch back.

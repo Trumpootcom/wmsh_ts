@@ -7,12 +7,13 @@ const descriptions: Record<keyof typeof aliases, string> = {
   title: "Overview title",
   overview: "1 to include the overview, 0 to omit it",
   place: "center",
-  gstyle: "square or iso",
-  gangle: "15 to 90 for ISO, null for square",
+  gstyle: "rect or hex; legacy aliases: square and iso",
+  giso: "true for projection, false for regular cells",
+  gangle: "15 to 90 if giso=true, null if giso=false",
   grot: "Counterclockwise rotation in degrees",
   gx: "X offset in cell units, from -1.0 to 1.0",
   gy: "Y offset in cell units, from -1.0 to 1.0",
-  gscale: "Printed inches per five world feet",
+  gscale: "Inches per 5 ft; minimum hex flat-to-flat",
   gline: "solid, dash-1, dash-2, dash-3, dash-4, dash-5, dash-6, " +
     "dash-8, dash-10, dash-16, corners, or none",
   gcolor: "black, gray, white, diff, or contrast",
@@ -86,8 +87,8 @@ ${table}
 
 Quote the full URL and join multiple parameters with &. Use each alias
 once. Unknown, repeated, or invalid overrides return HTTP 422.
-Use gstyle=iso&gangle=60 to switch to ISO and
-gstyle=square&gangle=null to switch back.
+Use gstyle=rect&giso=true&gangle=60 to switch to ISO and
+giso=false&gangle=null to switch back.
 
 Full guide
 https://wmsh-ts.trumpoot.workers.dev/help

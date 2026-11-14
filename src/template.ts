@@ -41,7 +41,13 @@ const positiveInteger = (value: number) => Number.isSafeInteger(value) && value 
 export function readTemplate(value: unknown, params = new URLSearchParams()) {
   const source = object(value, "template");
   if (source.schemaVersion !== 1) invalid("schemaVersion", "1");
-  const { template, grid, page } = applyOverrides({ title: defaults.title, overview: false, ...source }, object(source.grid, "grid"), object(source.page, "page"), params);
+  const sourceGrid = object(source.grid, "grid");
+  const { template, grid, page } = applyOverrides(
+    { title: defaults.title, overview: false, ...source },
+    { iso: sourceGrid.style === "iso", ...sourceGrid },
+    object(source.page, "page"),
+    params,
+  );
   if (typeof template.overview !== "boolean") invalid("overview", "true or false");
   if (typeof template.name !== "string" || !template.name.trim()) {
     invalid("name", "a non-empty string");
@@ -51,12 +57,17 @@ export function readTemplate(value: unknown, params = new URLSearchParams()) {
   }
   const worldWidthFeet = number(template.worldWidthFeet, "worldWidthFeet", positive, "a positive number");
   if (template.imagePlacement !== "center") invalid("imagePlacement", "center");
-  const style = option(grid.style, "grid.style", ["square", "iso"]);
+  const style = option(grid.style, "grid.style", ["rect", "hex", "square", "iso"]);
+  const legacyStyle = params.get("gstyle");
+  const iso = !params.has("giso") && (legacyStyle === "iso" || legacyStyle === "square")
+    ? legacyStyle === "iso"
+    : grid.iso;
+  if (typeof iso !== "boolean") invalid("grid.iso", "true or false");
   let isoAngle = 90;
-  if (style === "iso") {
+  if (iso) {
     isoAngle = number(grid.isoAngleDegrees, "grid.isoAngleDegrees", (value) => value >= 15 && value <= 90, "between 15 and 90 degrees");
   } else if (grid.isoAngleDegrees !== null) {
-    invalid("grid.isoAngleDegrees", "null for a square grid");
+    invalid("grid.isoAngleDegrees", "null when grid.iso is false");
   }
   const rotation = number(grid.rotationDegrees, "grid.rotationDegrees", Number.isFinite, "a finite number");
   const offsetX = number(grid.offsetX, "grid.offsetX", Number.isFinite, "a finite number");
@@ -88,7 +99,7 @@ export function readTemplate(value: unknown, params = new URLSearchParams()) {
   }
 
   return {
-    name: template.name, title: template.title.trim(), overview: template.overview, worldWidthFeet, style, color, size, orientation,
+    name: template.name, title: template.title.trim(), overview: template.overview, worldWidthFeet, style: style === "hex" ? "hex" as const : "rect" as const, iso, color, size, orientation,
     pageWidth, pageHeight, margin, spacing, rows, columns, overlap: overlapInches * 72,
     mapWidth: (worldWidthFeet / 5) * spacing,
     rotation, isoAngle, offsetX, offsetY, adaptiveContrast: color === "contrast",

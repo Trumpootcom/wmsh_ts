@@ -1,4 +1,5 @@
 import type { BlendMode, PDFPage, RGB } from "pdf-lib";
+import type { HexView } from "./hexGrid";
 
 // Alternating stroke and gap lengths along one edge, in 64ths of that edge.
 const patterns = {
@@ -72,10 +73,25 @@ export function drawGrid(
   settings: Settings,
   imageCenter: Point,
   rect: { left: number; top: number; width: number; height: number },
+  hex?: HexView,
 ) {
   const { spacing, rotation, isoAngle, offsetX, offsetY, lineStyle } = settings;
   const { pattern, ...stroke } = lineStyle;
   if (pattern === "none") return;
+  if (hex) {
+    const padding = stroke.thickness / 2;
+    for (const edge of hex.edges) {
+      const start = { x: edge.start.x * hex.scale + hex.x, y: edge.start.y * hex.scale + hex.y };
+      const end = { x: edge.end.x * hex.scale + hex.x, y: edge.end.y * hex.scale + hex.y };
+      if (Math.max(start.x, end.x) < rect.left - padding ||
+          Math.min(start.x, end.x) > rect.left + rect.width + padding ||
+          Math.min(start.y, end.y) > rect.top + padding ||
+          Math.max(start.y, end.y) < rect.top - rect.height - padding) continue;
+      const length = Math.hypot(end.x - start.x, end.y - start.y);
+      page.drawLine({ start, end, ...stroke, ...dashOptions(pattern, length, 0) });
+    }
+    return;
+  }
 
   // Port of vtt_slicer's lattice basis in PDF coordinates (positive Y is up).
   const angle = isoAngle * Math.PI / 180;

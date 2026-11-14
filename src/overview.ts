@@ -1,6 +1,7 @@
 import { BlendMode, LineCapStyle, clip, endPath, popGraphicsState, pushGraphicsState, rectangle, rgb, StandardFonts,
   type PDFDocument, type PDFImage, type PDFFont } from "pdf-lib";
 import { drawGrid } from "./grid";
+import type { HexView } from "./hexGrid";
 import { drawContrastGrid } from "./contrast";
 import type { readTemplate } from "./template";
 import { drawSheetBadge } from "./sheetBadge";
@@ -15,6 +16,7 @@ export async function addOverview(
   pdf: PDFDocument, image: PDFImage, bold: PDFFont,
   template: ReturnType<typeof readTemplate>, layout: Layout,
   source?: Parameters<typeof drawContrastGrid>[6],
+  hexEdges?: HexView["edges"],
 ) {
   const pageWidth = Math.max(template.pageWidth, template.pageHeight);
   const pageHeight = Math.min(template.pageWidth, template.pageHeight);
@@ -48,9 +50,11 @@ export async function addOverview(
   page.drawImage(image, { x: left + map.left, y: mapY - map.top - map.height, width: map.width, height: map.height });
   if (source) {
     drawContrastGrid(pdf, page, grid, { x: width / 2, y: height / 2 },
-      { left: 0, top: 0, width, height }, map, source, { left, top: mapY });
-  } else if (!template.adaptiveContrast) {
-    drawGrid(page, grid, { x: left + width / 2, y: mapY - height / 2 }, { left, top: mapY, width, height });
+      { left: 0, top: 0, width, height }, map, source, { left, top: mapY },
+      hexEdges && { edges: hexEdges, scale: factor, x: 0, y: 0 });
+  } else if (!template.adaptiveContrast && template.lineStyle.opacity > 0) {
+    drawGrid(page, grid, { x: left + width / 2, y: mapY - height / 2 }, { left, top: mapY, width, height },
+      hexEdges && { edges: hexEdges, scale: factor, x: left, y: mapY });
   }
   page.pushOperators(popGraphicsState());
 
@@ -112,7 +116,7 @@ export async function addOverview(
     `Image: ${dims(layout.mapWidth, layout.mapHeight, 72)} in | ${dims(layout.mapWidth, layout.mapHeight, feetUnit)} ft`,
   ];
   const gridLines = [
-    `Grid: ${template.style}, ${template.color}, ${template.lineStyle.pattern} | ${format(template.lineStyle.thickness)} pt | opacity ${format(template.lineStyle.opacity)}${template.style === "iso" ? ` | ${format(template.isoAngle)} deg` : ""}`,
+    `Grid: ${template.style}, ${template.color}, ${template.lineStyle.pattern} | ${format(template.lineStyle.thickness)} pt | opacity ${format(template.lineStyle.opacity)}${template.iso ? ` | ISO ${format(template.isoAngle)} deg` : ""}`,
     `Rotation: ${format(template.rotation)} deg | Offsets: ${format(template.offsetX)}, ${format(template.offsetY)} cells`,
   ];
   const scaleWidth = 164;

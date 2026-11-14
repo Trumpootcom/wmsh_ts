@@ -6,7 +6,8 @@
   "worldWidthFeet": 160,
   "imagePlacement": "center",
   "grid": {
-    "style": "square",
+    "style": "rect",
+    "iso": false,
     "isoAngleDegrees": null,
     "rotationDegrees": 0,
     "offsetX": 0,

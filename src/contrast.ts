@@ -13,6 +13,7 @@ export function drawContrastGrid(
   map: Rect,
   source: Raster,
   destination = { left: (page.getWidth() - rect.width) / 2, top: (page.getHeight() + rect.height) / 2 },
+  hex?: Parameters<typeof drawGrid>[4],
 ) {
   const opacity = settings.lineStyle.opacity;
   if (opacity === 0) return;
@@ -68,7 +69,7 @@ export function drawContrastGrid(
         }
       }
     },
-  }, settings, { x: center.x, y: -center.y }, { left: rect.left, top: -rect.top, width: rect.width, height: rect.height });
+  }, settings, { x: center.x, y: -center.y }, { left: rect.left, top: -rect.top, width: rect.width, height: rect.height }, hex);
 
   const rgb = new Uint8Array(width * height * 3);
   for (let y = 0; y < height; y++) {

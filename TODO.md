@@ -2,7 +2,8 @@
 
 - [x] Add a configurable overview title to the template and `test.html`. Default to `TTRPG Battle Map` and support the `title` URL parameter.
 
-- [ ] Add a hex grid option to the renderer and `test.html`. Define how print scale applies to hexes and verify that the grid aligns across sheet overlaps.
+- [x] Add regular and projected hex grids with shared geometry across sheet overlaps and a 1-inch round-base fit at 1 inch per 5 feet.
+- [ ] Decorate the overview legend and SCALE panels with small parchment squares behind each corner, protruding about 3 pt on each adjoining edge. Add a muted brown rule under the legend heading and a faint divider between its columns.
 
 - [ ] Add a **Copy settings** button to `test.html` that puts the current render settings on the clipboard in a format you can paste into ChatGPT.
 - [ ] Implement named templates backed by Cloudflare R2 so a render can reuse saved settings by template name.

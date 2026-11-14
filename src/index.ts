@@ -3,6 +3,7 @@ import { readTemplate } from "./template";
 import { help } from "./help";
 import { urlHelp } from "./urlHelp";
 import { drawGrid } from "./grid";
+import { buildHexEdges } from "./hexGrid";
 import defaultTemplate from "./default.json";
 import { decode } from "jpeg-js";
 import { drawContrastGrid } from "./contrast";
@@ -121,6 +122,15 @@ async function handleRequest(request: Request): Promise<Response> {
 
   const mapLeft = (canvasWidth - mapWidth) / 2;
   const mapTop = (canvasHeight - mapHeight) / 2;
+  let hexEdges: ReturnType<typeof buildHexEdges> | undefined;
+  if (template.style === "hex" && template.lineStyle.pattern !== "none" && template.lineStyle.opacity > 0) {
+    try {
+      hexEdges = buildHexEdges(template, canvasWidth, canvasHeight);
+    } catch (failure) {
+      if (failure instanceof Error) return error(failure.message, 422);
+      throw failure;
+    }
+  }
   const top = pageHeight - margin;
   let contrastSource;
   if (template.adaptiveContrast && template.lineStyle.pattern !== "none" && template.lineStyle.opacity > 0) {
@@ -138,7 +148,7 @@ async function handleRequest(request: Request): Promise<Response> {
     await addOverview(pdf, image, pageNumberFont, template, {
       canvasWidth, canvasHeight, mapWidth, mapHeight, mapLeft, mapTop,
       stepX, stepY, printableWidth, printableHeight,
-    }, contrastSource);
+    }, contrastSource, hexEdges);
   }
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < columns; col++) {
@@ -169,12 +179,14 @@ async function handleRequest(request: Request): Promise<Response> {
         drawContrastGrid(pdf, page, template,
           { x: canvasWidth / 2, y: canvasHeight / 2 },
           { left: sheetLeft, top: sheetTop, width: printableWidth, height: printableHeight },
-          { left: mapLeft, top: mapTop, width: mapWidth, height: mapHeight }, contrastSource);
-      } else if (!template.adaptiveContrast) {
+          { left: mapLeft, top: mapTop, width: mapWidth, height: mapHeight }, contrastSource,
+          undefined, hexEdges && { edges: hexEdges, scale: 1, x: 0, y: 0 });
+      } else if (!template.adaptiveContrast && template.lineStyle.opacity > 0) {
         drawGrid(page, template, {
           x: margin - sheetLeft + mapLeft + mapWidth / 2,
           y: top + sheetTop - mapTop - mapHeight / 2,
-        }, { left: margin, top, width: printableWidth, height: printableHeight });
+        }, { left: margin, top, width: printableWidth, height: printableHeight },
+        hexEdges && { edges: hexEdges, scale: 1, x: margin - sheetLeft, y: top + sheetTop });
       }
       page.pushOperators(popGraphicsState());
       drawSheetBadge(page, pageNumberFont, row, col, {

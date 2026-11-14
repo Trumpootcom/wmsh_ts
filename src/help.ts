@@ -5,7 +5,7 @@ export const help = `HEADLESS WMS
 JPEG, PNG, or static WebP battle map to print-ready PDF
 
 Headless WMS takes a JPEG, PNG, or static WebP and an optional JSON print
-template. It centers the map, draws a square or isometric grid, and
+template. It centers the map, draws a square, diamond, or hex grid, and
 returns a PDF with the exact sheet layout you specify.
 
 QUICK START
@@ -49,7 +49,8 @@ EXAMPLE TEMPLATE
   "worldWidthFeet": 65,
   "imagePlacement": "center",
   "grid": {
-    "style": "square",
+    "style": "rect",
+    "iso": false,
     "isoAngleDegrees": null,
     "rotationDegrees": 0,
     "offsetX": 0,
@@ -82,17 +83,21 @@ TEMPLATE FIELDS
   worldWidthFeet          Requested world width in feet before fitting.
   imagePlacement          Use "center" to center the image across all sheets.
 
-  grid.style              "square" or "iso".
-  grid.isoAngleDegrees    Use null for squares. For "iso", use the angle
-                          between the grid axes in degrees, from 15 to 90.
+  grid.style              "rect" or "hex". Hexes start flat-top.
+  grid.iso                true for projection or false for regular cells.
+                          Older styles "square" and "iso" still work.
+                          An explicit giso override takes precedence.
+  grid.isoAngleDegrees    Use null when projection is off. When it is on,
+                          use 15 to 90 degrees. For rect this is the angle
+                          between grid axes. For hex this is the tilt angle.
   grid.rotationDegrees   Counterclockwise rotation in degrees. Use 0 for
                           a horizontal first axis.
   grid.offsetX            Shift along the grid's X axis in cell units.
   grid.offsetY            Shift along the grid's Y axis in cell units.
                           Both start at 0 (no shift). Use values from -1 to +1
                           to describe a shift of up to one cell either way.
-                          Zero offsets put a grid intersection at the image
-                          center. With a square grid at zero rotation,
+                          Zero offsets put a grid intersection or hex cell
+                          center at the image center. With a square grid at zero rotation,
                           positive X shifts right and positive Y shifts down.
                           With an ISO grid, Y follows the slanted grid axis.
                           Offsets repeat every cell. For example, 1.1 has
@@ -134,6 +139,11 @@ TEMPLATE FIELDS
                           both printable sheet dimensions.
 
 SCALE AND FIT
+
+For hexes, the scale is the smallest perpendicular distance between
+opposite sides. At 1 inch per 5 feet, a centered 1-inch round base fits
+even with projection enabled. Rotation is applied after projection.
+For example, use gstyle=hex&giso=true&gangle=60 for tilted hexes.
 
 Each square represents five world feet. For ISO grids, the print spacing
 is measured perpendicular to each family of parallel lines, as in
@@ -186,15 +196,15 @@ TEMPLATE OVERRIDES
   that request. Overrides apply to the default or the uploaded template.
   A custom upload must include every required field, including schemaVersion.
   Use each alias once. Unknown or repeated aliases return 422. Numeric
-  values use decimal notation. Use gangle=null with gstyle=square when
-  starting from an ISO template.
+  values use decimal notation. Use giso=true&gangle=60 to project the grid
+  and giso=false&gangle=null to switch back.
 
 ${overrideReference}
 
   Quote the full URL in your shell when combining overrides with &.
   Encode spaces in names as %20. The fit-to-page rule still applies.
 
-  curl.exe --fail-with-body -F "image=@map.jpg" -F "template_file=@template.json" -o map.pdf "https://wmsh-ts.trumpoot.workers.dev/render?overview=1&title=Goblin%20Ambush&wid=160&gstyle=iso&gangle=60&gline=dash-8&pr=2&pc=2&psize=ledger&porient=landscape"
+  curl.exe --fail-with-body -F "image=@map.jpg" -F "template_file=@template.json" -o map.pdf "https://wmsh-ts.trumpoot.workers.dev/render?overview=1&title=Goblin%20Ambush&wid=160&gstyle=rect&giso=true&gangle=60&gline=dash-8&pr=2&pc=2&psize=ledger&porient=landscape"
 
 STATUS CODES
 

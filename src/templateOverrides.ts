@@ -5,6 +5,7 @@ export const aliases = {
   overview: ["overview", "boolean"],
   place: ["imagePlacement", "text"],
   gstyle: ["grid.style", "text"],
+  giso: ["grid.iso", "trueFalse"],
   gangle: ["grid.isoAngleDegrees", "nullableDecimal"],
   grot: ["grid.rotationDegrees", "decimal"],
   gx: ["grid.offsetX", "decimal"],
@@ -48,6 +49,9 @@ export function applyOverrides(
 
     if (kind === "text") {
       target[field] = raw;
+    } else if (kind === "trueFalse") {
+      if (raw !== "true" && raw !== "false") throw new Error(`${alias} must be true or false.`);
+      target[field] = raw === "true";
     } else if (kind === "boolean") {
       if (raw !== "0" && raw !== "1") throw new Error(`${alias} must be 0 or 1.`);
       target[field] = raw === "1";
