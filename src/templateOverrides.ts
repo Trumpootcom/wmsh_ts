@@ -1,4 +1,4 @@
-const aliases = {
+export const aliases = {
   wid: ["worldWidthFeet", "decimal"],
   name: ["name", "text"],
   place: ["imagePlacement", "text"],

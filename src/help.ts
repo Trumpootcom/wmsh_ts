@@ -1,11 +1,12 @@
 import { overrideReference } from "./templateOverrides";
+import defaults from "./default.json";
 
 export const help = `HEADLESS WMS
 JPEG, PNG, or static WebP battle map to print-ready PDF
 
-Headless WMS takes a JPEG, PNG, or static WebP and a JSON print template. It centers the map
-at the requested print scale, draws a square or isometric grid, and returns a PDF
-with the exact sheet layout you specify.
+Headless WMS takes a JPEG, PNG, or static WebP and an optional JSON print
+template. It centers the map, draws a square or isometric grid, and
+returns a PDF with the exact sheet layout you specify.
 
 QUICK START
 
@@ -15,8 +16,10 @@ To use the built-in 160-foot-wide template, upload just the image:
 
 The default produces four landscape Ledger sheets with quarter-inch
 margins and eighth-inch overlaps. At the requested scale of one inch
-per five feet, an 8:5 JPG prints at 32 by 20 inches. Larger artwork
-shrinks to fit the printable area.
+per five feet, an 8:5 image prints at 32 by 20 inches. Artwork that would
+exceed the printable area shrinks to fit.
+The default grid is solid and ${defaults.grid.color}, with a
+${defaults.grid.lineWidthPoints}-point stroke and opacity ${defaults.grid.opacity}.
 
 To use your own template:
 
@@ -33,7 +36,7 @@ To use your own template:
    On macOS or Linux, replace curl.exe with curl. Replace the paths after
    @ as needed. The -F flags send a multipart POST.
 4. Open map.pdf. This example produces four landscape Letter sheets.
-   Lay out pages 1 and 2 on top, with pages 3 and 4 beneath them.
+   Lay out sheets A1 and B1 on top, with A2 and B2 beneath them.
    Print at Actual Size or 100% to preserve the grid dimensions.
 
 EXAMPLE TEMPLATE
@@ -70,7 +73,7 @@ TEMPLATE FIELDS
 
   schemaVersion           Use 1.
   name                    Any non-empty descriptive string.
-  worldWidthFeet          Positive number of world feet across the JPG.
+  worldWidthFeet          Positive number of world feet across the image.
   imagePlacement          Use "center" to center the image across all sheets.
 
   grid.style              "square" or "iso".
@@ -82,7 +85,7 @@ TEMPLATE FIELDS
   grid.offsetY            Shift along the grid's Y axis in cell units.
                           Both start at 0 (no shift). Use values from -1 to +1
                           to describe a shift of up to one cell either way.
-                          Zero offsets put a grid intersection at the JPG
+                          Zero offsets put a grid intersection at the image
                           center. With a square grid at zero rotation,
                           positive X shifts right and positive Y shifts down.
                           With an ISO grid, Y follows the slanted grid axis.
@@ -98,17 +101,19 @@ TEMPLATE FIELDS
                           scale with the cell edge. "dash-1" draws one
                           quarter, skips half, and draws one quarter.
                           "corners" draws one eighth at each end.
-  grid.color              "black", "gray", "white", "diff", or "contrast".
-                          "diff" blends white with the artwork using Difference.
-                          Set opacity to 1 for full inversion along each stroke.
-                          "contrast" adjusts the inverted color toward white
-                          on darker midtones and toward black on lighter ones.
-                          At full opacity it targets a brightness difference
-                          of at least 64 on a 0–255 scale. The overlay is
-                          rasterized at 144 dpi and requires a JPG within
-                          the decoder's 12-megapixel and memory limits.
+  grid.color              "black", "gray", and "white" draw fixed colors.
+                          "diff" inverts the artwork along each stroke at
+                          full opacity. Mid-gray can remain hard to see.
+                          "contrast" pushes the inverted stroke lighter on
+                          dark midtones and darker on light midtones. At
+                          full opacity it targets a brightness difference
+                          of at least 64 on a 0–255 scale. Both modes draw
+                          black over blank paper at full opacity.
+                          Contrast uses a 144 dpi overlay and requires a
+                          working JPEG within decoder memory and 12 MP limits.
   grid.lineWidthPoints    Positive stroke width in PDF points (72 per inch).
   grid.opacity            Number from 0 (transparent) to 1 (opaque).
+                          Try ?gcolor=contrast&gopacity=1 for gray artwork.
   grid.extent             Use "printableCanvas" to cover the complete canvas,
                           including areas outside the image.
 
@@ -129,10 +134,10 @@ is measured perpendicular to each family of parallel lines, as in
 vtt_slicer. The slanted cell edges lengthen as the angle gets smaller.
 To print each square at three
 quarters of an inch, set grid.inchesPerFiveFeet to 0.75. Changing this
-value scales the JPG and grid together.
+value scales the image and grid together.
 
   Requested width  = worldWidthFeet / 5 * grid.inchesPerFiveFeet
-  Requested height = requested width * JPG pixel height / JPG pixel width
+  Requested height = requested width * image pixel height / image pixel width
 
 Subtract twice the margin from each sheet dimension to get its printable
 width and height. Multiply the printable width by columns and the printable
@@ -141,7 +146,9 @@ The example has a 20.875 x 15.875 inch assembled printable area and
 prints a 65-foot-wide map at 9.75 inches wide.
 
 The PDF always contains rows times columns sheets, up to 100, even when
-some sheets contain only grid. Adjacent sheets repeat the same artwork
+some sheets contain only grid. The column letter and row number in each
+corner badge identify the sheet. PDF order runs across each row, then
+down to the next row. Adjacent sheets repeat the same artwork
 and grid in the overlap. If either dimension exceeds the assembled
 printable area, the Worker shrinks the image and grid proportionally
 until both dimensions fit, then centers the map across the sheets.
@@ -151,6 +158,7 @@ when the map would otherwise shrink.
 HTTP REQUEST AND RESPONSE
 
   GET /help     This plain-text guide.
+  GET /url      Plain-text URL parameter reference with defaults.
   POST /render  Send multipart/form-data with one JPEG, PNG, or static WebP file in "image"
                 and optionally one JSON file in "template_file".
                 Omitting that field uses the built-in default.
@@ -189,9 +197,9 @@ Errors from the Worker are JSON with an "error" message. With
 --fail-with-body and -o map.pdf, curl exits with an error and may save
 that JSON in map.pdf. In PowerShell, read it with Get-Content .\\map.pdf.
 
-To help someone prepare a request, ask for their JPG or its path, its
+To help someone prepare a request, ask for their image or its path, its
 world width in feet, the desired printed inches per five feet, and the
 paper layout. Use the template above to prepare a complete JSON file.
-If you cannot access the user's local JPG, give them the JSON and upload
+If you cannot access the user's local image, give them the JSON and upload
 command to run on their own machine.
 `;

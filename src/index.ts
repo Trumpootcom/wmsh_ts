@@ -1,6 +1,7 @@
 import { BlendMode, clip, endPath, PDFDocument, popGraphicsState, pushGraphicsState, rectangle, rgb, StandardFonts, type PDFFont, type PDFPage } from "pdf-lib";
 import { readTemplate } from "./template";
 import { help } from "./help";
+import { urlHelp } from "./urlHelp";
 import { drawGrid } from "./grid";
 import defaultTemplate from "./default.json";
 import { decode } from "jpeg-js";
@@ -52,11 +53,11 @@ export default {
 
 async function handleRequest(request: Request): Promise<Response> {
   const { pathname, searchParams } = new URL(request.url);
-  if (pathname === "/help") {
+  if (pathname === "/help" || pathname === "/url") {
     if (request.method !== "GET" && request.method !== "HEAD") {
-      return error("Use GET /help for the user guide.", 405, { Allow: "GET, HEAD" });
+      return error(`Use GET ${pathname} to read the documentation.`, 405, { Allow: "GET, HEAD" });
     }
-    return new Response(request.method === "HEAD" ? null : help, {
+    return new Response(request.method === "HEAD" ? null : pathname === "/help" ? help : urlHelp, {
       headers: { "Content-Type": "text/plain; charset=utf-8" },
     });
   }
