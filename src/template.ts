@@ -1,5 +1,6 @@
 import { PageSizes, rgb } from "pdf-lib";
 import { gridLineStyles } from "./grid";
+import { applyOverrides } from "./templateOverrides";
 
 const pageSizes = { letter: PageSizes.Letter, ledger: [792, 1224] as const };
 const colors = {
@@ -36,15 +37,15 @@ const positive = (value: number) => value > 0;
 const nonnegative = (value: number) => value >= 0;
 const positiveInteger = (value: number) => Number.isSafeInteger(value) && value > 0;
 
-export function readTemplate(value: unknown) {
-  const template = object(value, "template");
-  if (template.schemaVersion !== 1) invalid("schemaVersion", "1");
+export function readTemplate(value: unknown, params = new URLSearchParams()) {
+  const source = object(value, "template");
+  if (source.schemaVersion !== 1) invalid("schemaVersion", "1");
+  const { template, grid, page } = applyOverrides(source, object(source.grid, "grid"), object(source.page, "page"), params);
   if (typeof template.name !== "string" || !template.name.trim()) {
     invalid("name", "a non-empty string");
   }
   const worldWidthFeet = number(template.worldWidthFeet, "worldWidthFeet", positive, "a positive number");
   if (template.imagePlacement !== "center") invalid("imagePlacement", "center");
-  const grid = object(template.grid, "grid");
   const style = option(grid.style, "grid.style", ["square", "iso"]);
   let isoAngle = 90;
   if (style === "iso") {
@@ -62,7 +63,6 @@ export function readTemplate(value: unknown) {
   const opacity = number(grid.opacity, "grid.opacity", (value) => value >= 0 && value <= 1, "between 0 and 1");
   if (grid.extent !== "printableCanvas") invalid("grid.extent", "printableCanvas");
 
-  const page = object(template.page, "page");
   const size = option(page.size, "page.size", ["letter", "ledger"]);
   const orientation = option(page.orientation, "page.orientation", ["portrait", "landscape"]);
   const rows = number(page.rows, "page.rows", positiveInteger, "a positive integer");

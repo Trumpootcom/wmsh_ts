@@ -2,6 +2,7 @@ import { clip, endPath, PDFDocument, popGraphicsState, pushGraphicsState, rectan
 import { readTemplate } from "./template";
 import { help } from "./help";
 import { drawGrid } from "./grid";
+import defaultTemplate from "./default.json";
 
 function error(message: string, status: number, headers?: HeadersInit) {
   return Response.json({ error: message }, { status, headers });
@@ -9,7 +10,7 @@ function error(message: string, status: number, headers?: HeadersInit) {
 
 export default {
   async fetch(request: Request): Promise<Response> {
-    const { pathname } = new URL(request.url);
+    const { pathname, searchParams } = new URL(request.url);
     if (pathname === "/help") {
       if (request.method !== "GET" && request.method !== "HEAD") {
         return error("Use GET /help for the user guide.", 405, { Allow: "GET, HEAD" });
@@ -43,20 +44,22 @@ export default {
     const templates = form.getAll("template_file");
     const [templateFile] = templates;
     if (form.has("template_alias")) {
-      return error("This prototype accepts an uploaded template_file only.", 400);
+      return error("Template aliases are unavailable. Upload a template_file or use the built-in default.", 400);
     }
-    if (templates.length !== 1 || typeof templateFile === "string" || !templateFile?.size) {
-      return error("Upload exactly one JSON file in the template_file field.", 400);
-    }
-    let json: unknown;
-    try {
-      json = JSON.parse(await templateFile.text());
-    } catch {
-      return error("template_file must contain valid JSON.", 400);
+    let json: unknown = defaultTemplate;
+    if (templates.length > 0) {
+      if (templates.length !== 1 || typeof templateFile === "string" || !templateFile?.size) {
+        return error("Upload exactly one JSON file in the template_file field.", 400);
+      }
+      try {
+        json = JSON.parse(await templateFile.text());
+      } catch {
+        return error("template_file must contain valid JSON.", 400);
+      }
     }
     let template;
     try {
-      template = readTemplate(json);
+      template = readTemplate(json, searchParams);
     } catch (failure) {
       if (failure instanceof Error) return error(failure.message, 422);
       throw failure;

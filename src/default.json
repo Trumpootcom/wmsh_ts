@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "name": "160x100ft-Z100-2x2-LEDGER-LS",
+  "worldWidthFeet": 160,
+  "imagePlacement": "center",
+  "grid": {
+    "style": "square",
+    "isoAngleDegrees": null,
+    "rotationDegrees": 0,
+    "offsetX": 0,
+    "offsetY": 0,
+    "inchesPerFiveFeet": 1,
+    "lineStyle": "solid",
+    "color": "black",
+    "lineWidthPoints": 1.5,
+    "opacity": 0.6,
+    "extent": "printableCanvas"
+  },
+  "page": {
+    "size": "ledger",
+    "orientation": "landscape",
+    "rows": 2,
+    "columns": 2,
+    "marginInches": 0.25,
+    "overlapInches": 0.125
+  }
+}

@@ -27,13 +27,13 @@ Every rendering request requires two inputs.
 
 ### 2.2 Template
 
-The caller supplies exactly one of the following:
+The caller can omit the template to use the built-in 160-foot-wide, 2 × 2 landscape Ledger template, or supply a custom template.
 
 **Option A — JSON Template File**
 
 Upload a `template_file.json` containing the complete map and printing configuration.
 
-**Option B — Template Alias**
+**Option B — Template Alias (planned)**
 
 Supply a `template_alias` identifying a previously published template stored in Cloudflare R2.
 
@@ -176,7 +176,7 @@ Accepts a multipart request containing:
 - `template_file` — JSON file, optional
 - `template_alias` — string, optional
 
-Exactly one template source must be supplied.
+With no template source, the Worker uses its bundled default. When alias support is added, requests may supply at most one template source.
 
 **Success:** HTTP 200 with PDF file response.
 

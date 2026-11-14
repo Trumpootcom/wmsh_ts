@@ -21,3 +21,5 @@ Include every field in the example. Try changing `grid.inchesPerFiveFeet` to `0.
 The Worker supports Letter or Ledger in either orientation, plus square and isometric grids centered on the JPG. Run `curl.exe -fsS http://127.0.0.1:8787/help` for the supported styles, aliases, and template fields. See [vision.md](vision.md) for planned R2 alias support.
 
 Run `npm.cmd run typecheck` to generate the Worker types and check the TypeScript.
+
+Omit `template_file` to use the bundled [160-foot-wide, 2×2 landscape Ledger template](src/default.json). URL overrides apply to both bundled and uploaded templates.

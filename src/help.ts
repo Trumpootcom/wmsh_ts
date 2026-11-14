@@ -1,3 +1,5 @@
+import { overrideReference } from "./templateOverrides";
+
 export const help = `HEADLESS WMS
 JPG battle map to print-ready PDF
 
@@ -6,6 +8,17 @@ at the requested print scale, draws a square or isometric grid, and returns a PD
 with the exact sheet layout you specify.
 
 QUICK START
+
+To use the built-in 160-foot-wide template, upload just the JPG:
+
+   curl.exe --fail-with-body -F "image=@map.jpg;type=image/jpeg" -o map.pdf "https://wmsh-ts.trumpoot.workers.dev/render"
+
+The default produces four landscape Ledger sheets with quarter-inch
+margins and eighth-inch overlaps. At the requested scale of one inch
+per five feet, an 8:5 JPG prints at 32 by 20 inches. Larger artwork
+shrinks to fit the printable area.
+
+To use your own template:
 
 1. Start with a JPG that is already cropped and oriented for printing.
    The service preserves its aspect ratio. For the example below, use
@@ -129,7 +142,26 @@ HTTP REQUEST AND RESPONSE
 
   GET /help     This plain-text guide.
   POST /render  Send multipart/form-data with one JPG file in "image"
-                and one JSON file in "template_file".
+                and optionally one JSON file in "template_file".
+                Omitting that field uses the built-in default.
+
+TEMPLATE OVERRIDES
+
+  Add query parameters to POST /render to override template values for
+  that request. Overrides apply to the default or the uploaded template.
+  A custom upload must include every template field, including schemaVersion.
+  Use each alias once. Unknown or repeated aliases return 422. Numeric
+  values use decimal notation. Use gangle=null with gstyle=square when
+  starting from an ISO template.
+
+${overrideReference}
+
+  Quote the full URL in your shell when combining overrides with &.
+  Encode spaces in names as %20. The fit-to-page rule still applies.
+
+  curl.exe --fail-with-body -F "image=@map.jpg" -F "template_file=@template.json" -o map.pdf "https://wmsh-ts.trumpoot.workers.dev/render?wid=160&gstyle=iso&gangle=60&gline=dash4&pr=2&pc=2&psize=ledger&porient=landscape"
+
+STATUS CODES
 
   200  A PDF attachment (application/pdf). The server suggests a UTC
        timestamp filename. The example curl command saves it as map.pdf.
