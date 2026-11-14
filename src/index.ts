@@ -1,11 +1,38 @@
-import { clip, endPath, PDFDocument, popGraphicsState, pushGraphicsState, rectangle } from "pdf-lib";
+import { BlendMode, clip, endPath, PDFDocument, popGraphicsState, pushGraphicsState, rectangle, rgb, StandardFonts, type PDFFont, type PDFPage } from "pdf-lib";
 import { readTemplate } from "./template";
 import { help } from "./help";
 import { drawGrid } from "./grid";
 import defaultTemplate from "./default.json";
+import { decode } from "jpeg-js";
+import { drawContrastGrid } from "./contrast";
+import { workingJpeg } from "./workingImage";
 
 function error(message: string, status: number, headers?: HeadersInit) {
   return Response.json({ error: message }, { status, headers });
+}
+
+function drawPageNumber(page: PDFPage, font: PDFFont, row: number, column: number, margin: number) {
+  let columnLabel = "";
+  for (let index = column + 1; index > 0; index = Math.floor((index - 1) / 26)) {
+    columnLabel = String.fromCharCode(65 + (index - 1) % 26) + columnLabel;
+  }
+  const label = `${columnLabel}${row + 1}`;
+  const size = 18;
+  const height = 24;
+  const inset = margin + 1;
+  const radius = 6;
+  const textWidth = font.widthOfTextAtSize(label, size);
+  const width = Math.max(36, textWidth + 20);
+  const x = column === 0 ? inset : page.getWidth() - inset - width;
+  const y = row === 0 ? page.getHeight() - inset - height : inset;
+  const black = rgb(0, 0, 0);
+  page.drawSvgPath(
+    `M ${radius} 0 H ${width - radius} Q ${width} 0 ${width} ${radius}
+     V ${height - radius} Q ${width} ${height} ${width - radius} ${height}
+     H ${radius} Q 0 ${height} 0 ${height - radius} V ${radius} Q 0 0 ${radius} 0 Z`,
+    { x, y: y + height, color: rgb(1, 1, 1), borderColor: black, borderWidth: 1.625 },
+  );
+  page.drawText(label, { x: x + (width - textWidth) / 2, y: y + 5.6, size, font, color: black });
 }
 
 export default {
@@ -37,7 +64,7 @@ async function handleRequest(request: Request): Promise<Response> {
     return error("Route not found. See GET /help for usage.", 404);
   }
   if (request.method !== "POST") {
-    return error("Use POST to upload a JPG.", 405, { Allow: "POST" });
+    return error("Use POST to upload a JPEG, PNG, or WebP.", 405, { Allow: "POST" });
   }
   if (!/^multipart\/form-data(?:\s*;|$)/i.test(request.headers.get("Content-Type") ?? "")) {
     return error("Send a multipart/form-data request.", 415);
@@ -52,7 +79,7 @@ async function handleRequest(request: Request): Promise<Response> {
   const images = form.getAll("image");
   const [upload] = images;
   if (images.length !== 1 || typeof upload === "string" || !upload?.size) {
-    return error("Upload exactly one JPG file in the image field.", 400);
+    return error("Upload exactly one JPEG, PNG, or WebP file in the image field.", 400);
   }
 
   const templates = form.getAll("template_file");
@@ -81,16 +108,21 @@ async function handleRequest(request: Request): Promise<Response> {
 
   const { pageWidth, pageHeight, margin, rows, columns, overlap, mapWidth: requestedWidth } = template;
   const pdf = await PDFDocument.create();
-  const bytes = await upload.arrayBuffer();
+  let bytes: Uint8Array;
+  try {
+    bytes = await workingJpeg(await upload.arrayBuffer());
+  } catch (failure) {
+    return error(failure instanceof Error ? failure.message : "The uploaded image could not be converted.", 422);
+  }
   let image;
   try {
     image = await pdf.embedJpg(bytes);
   } catch {
-    return error("The image field must contain a readable JPG.", 422);
+    return error("The working JPEG is unreadable.", 422);
   }
 
   if (image.width <= 0 || image.height <= 0) {
-    return error("The JPG has invalid dimensions.", 422);
+    return error("The image has invalid dimensions.", 422);
   }
   const aspect = image.height / image.width;
   if (!Number.isFinite(requestedWidth) || requestedWidth <= 0) {
@@ -113,13 +145,32 @@ async function handleRequest(request: Request): Promise<Response> {
   const mapLeft = (canvasWidth - mapWidth) / 2;
   const mapTop = (canvasHeight - mapHeight) / 2;
   const top = pageHeight - margin;
+  let contrastSource;
+  if (template.adaptiveContrast && template.lineStyle.pattern !== "none" && template.lineStyle.opacity > 0) {
+    try {
+      contrastSource = decode(bytes, {
+        useTArray: true, formatAsRGBA: false, maxResolutionInMP: 12, maxMemoryUsageInMB: 80,
+      });
+    } catch {
+      return error("Contrast mode needs a decodable JPG within its 12-megapixel and decoder memory limits.", 422);
+    }
+  }
 
+  const pageNumberFont = await pdf.embedFont(StandardFonts.HelveticaBold);
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < columns; col++) {
       const sheetLeft = col * stepX;
       const sheetTop = row * stepY;
       const page = pdf.addPage([pageWidth, pageHeight]);
       page.pushOperators(pushGraphicsState(), rectangle(margin, margin, printableWidth, printableHeight), clip(), endPath());
+
+      if (fittedGrid.lineStyle.blendMode === BlendMode.Difference && fittedGrid.lineStyle.pattern !== "none") {
+        // Difference needs an opaque backdrop even where the JPG does not reach.
+        page.drawRectangle({
+          x: margin, y: margin, width: printableWidth, height: printableHeight,
+          color: rgb(1, 1, 1),
+        });
+      }
 
       if (mapLeft < sheetLeft + printableWidth && mapLeft + mapWidth > sheetLeft &&
           mapTop < sheetTop + printableHeight && mapTop + mapHeight > sheetTop) {
@@ -131,11 +182,19 @@ async function handleRequest(request: Request): Promise<Response> {
         });
       }
 
-      drawGrid(page, fittedGrid, {
-        x: margin - sheetLeft + mapLeft + mapWidth / 2,
-        y: top + sheetTop - mapTop - mapHeight / 2,
-      }, { left: margin, top, width: printableWidth, height: printableHeight });
+      if (contrastSource) {
+        drawContrastGrid(pdf, page, fittedGrid,
+          { x: canvasWidth / 2, y: canvasHeight / 2 },
+          { left: sheetLeft, top: sheetTop, width: printableWidth, height: printableHeight },
+          { left: mapLeft, top: mapTop, width: mapWidth, height: mapHeight }, contrastSource);
+      } else if (!template.adaptiveContrast) {
+        drawGrid(page, fittedGrid, {
+          x: margin - sheetLeft + mapLeft + mapWidth / 2,
+          y: top + sheetTop - mapTop - mapHeight / 2,
+        }, { left: margin, top, width: printableWidth, height: printableHeight });
+      }
       page.pushOperators(popGraphicsState());
+      drawPageNumber(page, pageNumberFont, row, col, margin);
     }
   }
 

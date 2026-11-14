@@ -1,4 +1,4 @@
-import type { PDFPage, RGB } from "pdf-lib";
+import type { BlendMode, PDFPage, RGB } from "pdf-lib";
 
 // Alternating stroke and gap lengths along one edge, in 64ths of that edge.
 const patterns = {
@@ -45,6 +45,7 @@ type Settings = {
     thickness: number;
     color: RGB;
     opacity: number;
+    blendMode?: BlendMode;
   };
 };
 
@@ -67,7 +68,7 @@ function dashOptions(style: LineStyle, edgeLength: number, startIndex: number) {
 }
 
 export function drawGrid(
-  page: PDFPage,
+  page: Pick<PDFPage, "drawLine">,
   settings: Settings,
   imageCenter: Point,
   rect: { left: number; top: number; width: number; height: number },

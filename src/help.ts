@@ -1,15 +1,15 @@
 import { overrideReference } from "./templateOverrides";
 
 export const help = `HEADLESS WMS
-JPG battle map to print-ready PDF
+JPEG, PNG, or static WebP battle map to print-ready PDF
 
-Headless WMS takes a JPG and a JSON print template. It centers the map
+Headless WMS takes a JPEG, PNG, or static WebP and a JSON print template. It centers the map
 at the requested print scale, draws a square or isometric grid, and returns a PDF
 with the exact sheet layout you specify.
 
 QUICK START
 
-To use the built-in 160-foot-wide template, upload just the JPG:
+To use the built-in 160-foot-wide template, upload just the image:
 
    curl.exe --fail-with-body -F "image=@map.jpg;type=image/jpeg" -o map.pdf "https://wmsh-ts.trumpoot.workers.dev/render"
 
@@ -20,9 +20,10 @@ shrinks to fit the printable area.
 
 To use your own template:
 
-1. Start with a JPG that is already cropped and oriented for printing.
+1. Start with a JPEG, PNG, or static WebP that is already cropped and oriented for printing.
    The service preserves its aspect ratio. For the example below, use
-   a landscape JPG and place it in the current folder as map.jpg.
+   a landscape image. For PNG or WebP, use your image filename and remove ;type=image/jpeg
+   from the curl example.
 2. Save the full JSON under EXAMPLE TEMPLATE as template.json in the
    same folder. Include every field. Save as UTF-8 without a BOM.
 3. Upload both files from that folder using PowerShell:
@@ -97,7 +98,15 @@ TEMPLATE FIELDS
                           scale with the cell edge. "dash-1" draws one
                           quarter, skips half, and draws one quarter.
                           "corners" draws one eighth at each end.
-  grid.color              "black", "gray", or "white".
+  grid.color              "black", "gray", "white", "diff", or "contrast".
+                          "diff" blends white with the artwork using Difference.
+                          Set opacity to 1 for full inversion along each stroke.
+                          "contrast" adjusts the inverted color toward white
+                          on darker midtones and toward black on lighter ones.
+                          At full opacity it targets a brightness difference
+                          of at least 64 on a 0–255 scale. The overlay is
+                          rasterized at 144 dpi and requires a JPG within
+                          the decoder's 12-megapixel and memory limits.
   grid.lineWidthPoints    Positive stroke width in PDF points (72 per inch).
   grid.opacity            Number from 0 (transparent) to 1 (opaque).
   grid.extent             Use "printableCanvas" to cover the complete canvas,
@@ -142,9 +151,15 @@ when the map would otherwise shrink.
 HTTP REQUEST AND RESPONSE
 
   GET /help     This plain-text guide.
-  POST /render  Send multipart/form-data with one JPG file in "image"
+  POST /render  Send multipart/form-data with one JPEG, PNG, or static WebP file in "image"
                 and optionally one JSON file in "template_file".
                 Omitting that field uses the built-in default.
+
+IMAGE NORMALIZATION
+
+  Static PNG and WebP images up to 12 megapixels are converted to a working JPEG.
+  The longest edge is capped at 2400 pixels and transparency prints
+  as white. JPEG uploads use their original pixels.
 
 TEMPLATE OVERRIDES
 
@@ -168,7 +183,7 @@ STATUS CODES
        timestamp filename. The example curl command saves it as map.pdf.
   400  Upload missing or duplicated, multipart data unreadable, or invalid JSON.
   415  Request must use multipart/form-data.
-  422  Invalid template field, unreadable JPG, or invalid fitted scale.
+  422  Invalid template field, unreadable image, or invalid fitted scale.
 
 Errors from the Worker are JSON with an "error" message. With
 --fail-with-body and -o map.pdf, curl exits with an error and may save

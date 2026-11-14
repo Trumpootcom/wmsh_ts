@@ -3,15 +3,15 @@
 
 ## 1. Project Overview
 
-Headless WMS is a Cloudflare Worker-based service that converts a prepared JPG battle map into a multipage, print-ready PDF using a predefined map-printing template.
+Headless WMS is a Cloudflare Worker-based service that converts a prepared JPEG, PNG, or static WebP battle map into a multipage, print-ready PDF using a predefined map-printing template.
 
 The service operates independently of the interactive WMS editor. It performs map scaling, grid generation, page layout, and PDF production without requiring a browser interface.
 
 **Core workflow:**
 
-`JPG image + JSON template (file or alias) → Multipage PDF`
+`JPEG, PNG, or static WebP + JSON template (file or alias) → Multipage PDF`
 
-The service does not perform image editing. The supplied JPG is assumed to have the desired orientation, cropping, perspective, color, and tone.
+The service does not perform image editing. The supplied image is assumed to have the desired orientation, cropping, perspective, color, and tone.
 
 ## 2. Inputs
 
@@ -19,7 +19,7 @@ Every rendering request requires two inputs.
 
 ### 2.1 Source Image
 
-- Format: JPG/JPEG
+- Formats: JPEG, static PNG, and static WebP. PNG and WebP uploads up to 12 megapixels are converted to an in-memory JPEG with a longest edge of at most 2400 pixels and transparency composited onto white.
 - The image is considered final and ready for printing.
 - Its aspect ratio is preserved.
 - Its height in world units is calculated from its width and aspect ratio.
@@ -55,7 +55,7 @@ Every field shown in the example is required. A missing field is a validation er
 | `grid.offsetY` | Offset along the downward lattice axis from the image center, in cell units |
 | `grid.inchesPerFiveFeet` | Printed inches representing five world feet |
 | `grid.lineStyle` | `solid`, `dash-1`, `dash-2`, `dash-3`, `dash-4`, `dash-5`, `dash-6`, `dash-8`, `dash-10`, `dash-16`, `corners`, or `none`. The number gives the dash count per cell edge. |
-| `grid.color` | Named grid color |
+| `grid.color` | Named grid color: black, gray, white, diff (Difference blend), or contrast (adaptive inversion) |
 | `grid.lineWidthPoints` | Grid stroke width in PDF points |
 | `grid.opacity` | Grid stroke opacity from 0 to 1 |
 | `grid.extent` | `printableCanvas` in version 1, including areas without artwork |
@@ -115,7 +115,7 @@ The interactive `vtt_slicer` exporter used the image dimensions to determine the
 
 The Worker performs the following operations:
 
-1. Validate the source JPG and supplied template.
+1. Validate the source image and supplied template.
 2. Resolve the template from the uploaded JSON or R2 alias.
 3. Calculate the image's physical dimensions from the world scale and source aspect ratio.
 4. Calculate the assembled printable canvas from the page size, orientation, margins, overlap, and page array.
@@ -172,7 +172,7 @@ Generates a PDF.
 
 Accepts a multipart request containing:
 
-- `image` — JPG file, required
+- `image` — JPEG, PNG, or static WebP file, required
 - `template_file` — JSON file, optional
 - `template_alias` — string, optional
 
@@ -287,7 +287,7 @@ Verify physical print scale, grid alignment, overlap, exact page counts, square/
 
 The initial project is successful when a client can submit:
 
-- One prepared JPG image
+- One prepared JPEG, PNG, or static WebP image
 - One JSON template file or R2 template alias
 
 And receive:

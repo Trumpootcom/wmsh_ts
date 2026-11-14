@@ -1,4 +1,4 @@
-import { PageSizes, rgb } from "pdf-lib";
+import { BlendMode, PageSizes, rgb } from "pdf-lib";
 import { gridLineStyles, normalizeGridLineStyle } from "./grid";
 import { applyOverrides } from "./templateOverrides";
 
@@ -58,7 +58,7 @@ export function readTemplate(value: unknown, params = new URLSearchParams()) {
   const offsetY = number(grid.offsetY, "grid.offsetY", Number.isFinite, "a finite number");
   const inchesPerFiveFeet = number(grid.inchesPerFiveFeet, "grid.inchesPerFiveFeet", positive, "a positive number");
   const pattern = normalizeGridLineStyle(option(grid.lineStyle, "grid.lineStyle", gridLineStyles));
-  const color = option(grid.color, "grid.color", ["black", "gray", "white"]);
+  const color = option(grid.color, "grid.color", ["black", "gray", "white", "diff", "contrast"]);
   const thickness = number(grid.lineWidthPoints, "grid.lineWidthPoints", positive, "a positive number");
   const opacity = number(grid.opacity, "grid.opacity", (value) => value >= 0 && value <= 1, "between 0 and 1");
   if (grid.extent !== "printableCanvas") invalid("grid.extent", "printableCanvas");
@@ -85,7 +85,11 @@ export function readTemplate(value: unknown, params = new URLSearchParams()) {
   return {
     pageWidth, pageHeight, margin, spacing, rows, columns, overlap: overlapInches * 72,
     mapWidth: (worldWidthFeet / 5) * spacing,
-    rotation, isoAngle, offsetX, offsetY,
-    lineStyle: { thickness, color: colors[color], opacity, pattern },
+    rotation, isoAngle, offsetX, offsetY, adaptiveContrast: color === "contrast",
+    lineStyle: {
+      thickness, opacity, pattern,
+      color: colors[color === "diff" || color === "contrast" ? "white" : color],
+      blendMode: color === "diff" ? BlendMode.Difference : undefined,
+    },
   };
 }
