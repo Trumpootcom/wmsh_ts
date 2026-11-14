@@ -5,6 +5,7 @@ const descriptions: Record<keyof typeof aliases, string> = {
   wid: "World width in feet",
   name: "Template name",
   title: "Overview title",
+  overview: "1 to include the overview, 0 to omit it",
   place: "center",
   gstyle: "square or iso",
   gangle: "15 to 90 for ISO, null for square",
@@ -49,7 +50,8 @@ titled overview page.
 Use curl on macOS or Linux. Replace map.png with your image path.
 Add -F "template_file=@template.json" to use a complete custom template.
 Overrides apply to either template for the current request.
-Add overview=1 to prepend a landscape assembly guide (default: 0).
+The bundled template includes the overview. Custom templates can set
+overview to true in JSON or use the overview=1 override.
 
 ${row("Parameter", "JSON field", "Default", "Description or allowed values")}
 ${table}

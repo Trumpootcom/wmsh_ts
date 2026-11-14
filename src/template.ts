@@ -41,7 +41,8 @@ const positiveInteger = (value: number) => Number.isSafeInteger(value) && value 
 export function readTemplate(value: unknown, params = new URLSearchParams()) {
   const source = object(value, "template");
   if (source.schemaVersion !== 1) invalid("schemaVersion", "1");
-  const { template, grid, page } = applyOverrides({ title: defaults.title, ...source }, object(source.grid, "grid"), object(source.page, "page"), params);
+  const { template, grid, page } = applyOverrides({ title: defaults.title, overview: false, ...source }, object(source.grid, "grid"), object(source.page, "page"), params);
+  if (typeof template.overview !== "boolean") invalid("overview", "true or false");
   if (typeof template.name !== "string" || !template.name.trim()) {
     invalid("name", "a non-empty string");
   }
@@ -87,7 +88,7 @@ export function readTemplate(value: unknown, params = new URLSearchParams()) {
   }
 
   return {
-    name: template.name, title: template.title.trim(), worldWidthFeet, style, color, size, orientation,
+    name: template.name, title: template.title.trim(), overview: template.overview, worldWidthFeet, style, color, size, orientation,
     pageWidth, pageHeight, margin, spacing, rows, columns, overlap: overlapInches * 72,
     mapWidth: (worldWidthFeet / 5) * spacing,
     rotation, isoAngle, offsetX, offsetY, adaptiveContrast: color === "contrast",

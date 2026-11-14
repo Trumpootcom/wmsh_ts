@@ -14,7 +14,7 @@ To use the built-in 160-foot-wide template, upload just the image:
 
    curl.exe --fail-with-body -F "image=@map.jpg;type=image/jpeg" -o map.pdf "https://wmsh-ts.trumpoot.workers.dev/render"
 
-The default produces four landscape Ledger sheets with quarter-inch
+The default produces a landscape overview followed by four landscape Ledger sheets with quarter-inch
 margins and eighth-inch overlaps. At the requested scale of one inch
 per five feet, an 8:5 image prints at 32 by 20 inches. Artwork that would
 exceed the printable area shrinks to fit.
@@ -45,6 +45,7 @@ EXAMPLE TEMPLATE
   "schemaVersion": 1,
   "name": "2 x 2 landscape Letter map",
   "title": "TTRPG Battle Map",
+  "overview": false,
   "worldWidthFeet": 65,
   "imagePlacement": "center",
   "grid": {
@@ -75,6 +76,9 @@ TEMPLATE FIELDS
   schemaVersion           Use 1.
   name                    Any non-empty descriptive string.
   title                   Optional overview heading. Defaults to TTRPG Battle Map.
+  overview                Optional boolean for the landscape guide. The bundled
+                          template sets it to true. Custom templates that omit
+                          it keep the map sheets only.
   worldWidthFeet          Requested world width in feet before fitting.
   imagePlacement          Use "center" to center the image across all sheets.
 
@@ -147,7 +151,7 @@ height by rows, then subtract one overlap for each join along that axis.
 The example has a 20.875 x 15.875 inch assembled printable area and
 prints a 65-foot-wide map at 9.75 inches wide.
 
-The PDF always contains rows times columns sheets, up to 100, even when
+The PDF contains rows times columns map sheets, up to 100, even when
 some sheets contain only grid. The column letter and row number in each
 corner badge identify the sheet. PDF order runs across each row, then
 down to the next row. Adjacent sheets repeat the same artwork
@@ -165,8 +169,9 @@ HTTP REQUEST AND RESPONSE
                 and optionally one JSON file in "template_file".
                 Omitting that field uses the built-in default.
 
-  Add ?overview=1 to prepend a landscape assembly guide on the selected
-  paper size. It shows cut lines, overlap, a scale bar, and render settings.
+  Use ?overview=1 to include or ?overview=0 to omit the landscape
+  assembly guide on the selected paper size. It shows cut lines,
+  overlap, print scale, and render settings.
   The numbered map sheets follow at their regular print scale.
 
 IMAGE NORMALIZATION

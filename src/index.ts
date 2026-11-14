@@ -78,12 +78,6 @@ async function handleRequest(request: Request): Promise<Response> {
     }
   }
   let template;
-  const overviewValues = searchParams.getAll("overview");
-  const [overview] = overviewValues;
-  if (overviewValues.length > 1 || (overview !== undefined && overview !== "0" && overview !== "1")) {
-    return error("Specify overview once as 0 or 1.", 422);
-  }
-  searchParams.delete("overview");
   try {
     template = readTemplate(json, searchParams);
   } catch (failure) {
@@ -140,7 +134,7 @@ async function handleRequest(request: Request): Promise<Response> {
   }
 
   const pageNumberFont = await pdf.embedFont(StandardFonts.HelveticaBold);
-  if (overview === "1") {
+  if (template.overview) {
     await addOverview(pdf, image, pageNumberFont, template, {
       canvasWidth, canvasHeight, mapWidth, mapHeight, mapLeft, mapTop,
       stepX, stepY, printableWidth, printableHeight,

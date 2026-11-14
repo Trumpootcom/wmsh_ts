@@ -24,6 +24,6 @@ Run `npm.cmd run typecheck` to generate the Worker types and check the TypeScrip
 
 Omit `template_file` to use the bundled [160-foot-wide, 2×2 landscape Ledger template](src/default.json). URL overrides apply to both bundled and uploaded templates.
 
-Add `?overview=1` to prepend a landscape assembly guide, or turn on **Overview page** in `test.html`. The guide uses the selected paper size and shows the full gridded layout, cut lines, render settings, and a calibrated scale bar.
+The bundled template prepends a landscape assembly guide titled **TTRPG Battle Map**. Use `?overview=0` or turn off **Overview page** in `test.html` to omit it. Custom templates can set `"overview": true` or use `?overview=1` to include it.
 
 Open [test.html](test.html) directly in your browser. Select a JPEG, PNG, or static WebP, adjust the settings, and click **Render PDF**. Choose **Local** with `npm.cmd run dev` running on port 8787, or choose **Live** once Cloudflare has deployed support for requests from the standalone page.

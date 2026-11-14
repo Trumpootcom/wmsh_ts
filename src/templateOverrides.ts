@@ -2,6 +2,7 @@ export const aliases = {
   wid: ["worldWidthFeet", "decimal"],
   name: ["name", "text"],
   title: ["title", "text"],
+  overview: ["overview", "boolean"],
   place: ["imagePlacement", "text"],
   gstyle: ["grid.style", "text"],
   gangle: ["grid.isoAngleDegrees", "nullableDecimal"],
@@ -47,6 +48,9 @@ export function applyOverrides(
 
     if (kind === "text") {
       target[field] = raw;
+    } else if (kind === "boolean") {
+      if (raw !== "0" && raw !== "1") throw new Error(`${alias} must be 0 or 1.`);
+      target[field] = raw === "1";
     } else if (kind === "nullableDecimal" && raw === "null") {
       target[field] = null;
     } else {

@@ -145,7 +145,7 @@
         </label>
       </fieldset>
       <label>Overview page
-        <select name="overview"><option value="0">Off</option><option value="1">On</option></select>
+        <select name="overview"><option value="0">Off</option><option value="1" selected>On</option></select>
       </label>
       <div class="submit"><button>Render PDF</button></div>
     </form>
@@ -217,7 +217,6 @@
     const image = document.querySelector("#image").files[0];
     upload.append("image", image);
     const params = new URLSearchParams(formValues);
-    if (params.get("overview") === "0") params.delete("overview");
     for (const input of form.querySelectorAll('input[type="number"]:enabled')) {
       params.set(input.name, decimal(input.value));
     }
