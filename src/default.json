@@ -12,7 +12,7 @@
     "inchesPerFiveFeet": 1,
     "lineStyle": "solid",
     "color": "black",
-    "lineWidthPoints": 1.5,
+    "lineWidthPoints": 2,
     "opacity": 0.6,
     "extent": "printableCanvas"
   },
