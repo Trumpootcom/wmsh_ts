@@ -9,7 +9,7 @@
     "rotationDegrees": 0,
     "offsetX": 0,
     "offsetY": 0,
-    "inchesPerFiveFeet": 1,
+    "inchesPerFiveFeet": 1.0,
     "lineStyle": "solid",
     "color": "black",
     "lineWidthPoints": 0.5,

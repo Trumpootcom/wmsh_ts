@@ -1,5 +1,7 @@
 # TODO for November 14, 2026
 
+- [x] Add a configurable overview title to the template and `test.html`. Default to `TTRPG Battle Map` and support the `title` URL parameter.
+
 - [ ] Add a hex grid option to the renderer and `test.html`. Define how print scale applies to hexes and verify that the grid aligns across sheet overlaps.
 
 - [ ] Add a **Copy settings** button to `test.html` that puts the current render settings on the clipboard in a format you can paste into ChatGPT.
