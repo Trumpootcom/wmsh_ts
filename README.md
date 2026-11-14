@@ -16,8 +16,8 @@ curl.exe --fail-with-body -F "image=@C:\path\to\map.jpg" -F "template_file=@exam
 Invoke-Item smoke.pdf
 ```
 
-Include every field in the example. Try changing `grid.inchesPerFiveFeet` to `0.5` to print the map 4 inches wide with half-inch squares. For a two-sheet print, start with the example and set `page.columns` to `2` and `worldWidthFeet` to `65`. The PDF contains exactly `page.rows × page.columns` sheets, up to 100, in row order from the top left. The map is centered across the assembled printable area, and adjacent sheets share the specified overlap. The Worker returns an error if the map exceeds that area at the requested scale.
+Include every field in the example. Try changing `grid.inchesPerFiveFeet` to `0.5` to print the map 4 inches wide with half-inch squares. For a two-sheet print, start with the example and set `page.columns` to `2` and `worldWidthFeet` to `65`. The PDF contains exactly `page.rows × page.columns` sheets, up to 100, in row order from the top left. The map is centered across the assembled printable area, and adjacent sheets share the specified overlap. If the map exceeds that area, the Worker shrinks the map and grid proportionally to fit.
 
-The Worker supports Letter or Ledger, either orientation, and black, gray, or white square-grid lines. See [vision.md](vision.md) for planned isometric grid and R2 alias support.
+The Worker supports Letter or Ledger in either orientation, plus square and isometric grids centered on the JPG. Run `curl.exe -fsS http://127.0.0.1:8787/help` for the supported styles, aliases, and template fields. See [vision.md](vision.md) for planned R2 alias support.
 
 Run `npm.cmd run typecheck` to generate the Worker types and check the TypeScript.

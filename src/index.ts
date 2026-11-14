@@ -1,5 +1,7 @@
 import { clip, endPath, PDFDocument, popGraphicsState, pushGraphicsState, rectangle } from "pdf-lib";
 import { readTemplate } from "./template";
+import { help } from "./help";
+import { drawGrid } from "./grid";
 
 function error(message: string, status: number, headers?: HeadersInit) {
   return Response.json({ error: message }, { status, headers });
@@ -7,8 +9,17 @@ function error(message: string, status: number, headers?: HeadersInit) {
 
 export default {
   async fetch(request: Request): Promise<Response> {
-    if (new URL(request.url).pathname !== "/render") {
-      return error("Route not found. Use POST /render.", 404);
+    const { pathname } = new URL(request.url);
+    if (pathname === "/help") {
+      if (request.method !== "GET" && request.method !== "HEAD") {
+        return error("Use GET /help for the user guide.", 405, { Allow: "GET, HEAD" });
+      }
+      return new Response(request.method === "HEAD" ? null : help, {
+        headers: { "Content-Type": "text/plain; charset=utf-8" },
+      });
+    }
+    if (pathname !== "/render") {
+      return error("Route not found. See GET /help for usage.", 404);
     }
     if (request.method !== "POST") {
       return error("Use POST to upload a JPG.", 405, { Allow: "POST" });
@@ -51,7 +62,7 @@ export default {
       throw failure;
     }
 
-    const { pageWidth, pageHeight, margin, spacing, rows, columns, overlap, mapWidth, rotation, offsetX, offsetY, lineStyle } = template;
+    const { pageWidth, pageHeight, margin, rows, columns, overlap, mapWidth: requestedWidth } = template;
     const pdf = await PDFDocument.create();
     const bytes = await upload.arrayBuffer();
     let image;
@@ -64,8 +75,8 @@ export default {
     if (image.width <= 0 || image.height <= 0) {
       return error("The JPG has invalid dimensions.", 422);
     }
-    const mapHeight = mapWidth * (image.height / image.width);
-    if (mapWidth <= 0 || mapHeight <= 0) {
+    const aspect = image.height / image.width;
+    if (!Number.isFinite(requestedWidth) || requestedWidth <= 0) {
       return error("The requested scale produces invalid map dimensions.", 422);
     }
     const printableWidth = pageWidth - 2 * margin;
@@ -74,21 +85,17 @@ export default {
     const stepY = printableHeight - overlap;
     const canvasWidth = printableWidth + (columns - 1) * stepX;
     const canvasHeight = printableHeight + (rows - 1) * stepY;
-    if (mapWidth > canvasWidth || mapHeight > canvasHeight) {
-      return error("The JPG does not fit on the assembled printable canvas at the requested scale.", 422);
+    const mapWidth = Math.min(requestedWidth, canvasWidth, canvasHeight / aspect);
+    const mapHeight = mapWidth * aspect;
+    const spacing = template.spacing * (mapWidth / requestedWidth);
+    if (mapHeight <= 0 || spacing < 0.25) {
+      return error("The fitted scale produces invalid dimensions or grid spacing below 0.25 PDF points.", 422);
     }
+    const fittedGrid = { ...template, spacing };
 
     const mapLeft = (canvasWidth - mapWidth) / 2;
     const mapTop = (canvasHeight - mapHeight) / 2;
-    const angle = (rotation % 360) * Math.PI / 180;
-    const cos = Math.cos(angle);
-    const sin = Math.sin(angle);
-    const diagonal = Math.hypot(canvasWidth, canvasHeight);
     const top = pageHeight - margin;
-    const gridAxes = [
-      { x: cos, y: -sin, phase: offsetX % 1 },
-      { x: -sin, y: -cos, phase: offsetY % 1 },
-    ];
 
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < columns; col++) {
@@ -107,25 +114,10 @@ export default {
           });
         }
 
-        // Use the same canvas origin and line endpoints on each sheet so grid
-        // positions and dash phases agree throughout the overlap.
-        for (const { x, y, phase } of gridAxes) {
-          const sheetProjection = sheetLeft * x - sheetTop * y;
-          const widthProjection = printableWidth * x;
-          const heightProjection = -printableHeight * y;
-          const low = sheetProjection + Math.min(0, widthProjection) + Math.min(0, heightProjection);
-          const high = sheetProjection + Math.max(0, widthProjection) + Math.max(0, heightProjection);
-          for (let i = Math.ceil(low / spacing - phase); i <= Math.floor(high / spacing - phase); i++) {
-            const distance = (i + phase) * spacing;
-            const centerX = margin - sheetLeft + distance * x;
-            const centerY = top + sheetTop + distance * y;
-            page.drawLine({
-              start: { x: centerX - diagonal * y, y: centerY + diagonal * x },
-              end: { x: centerX + diagonal * y, y: centerY - diagonal * x },
-              ...lineStyle,
-            });
-          }
-        }
+        drawGrid(page, fittedGrid, {
+          x: margin - sheetLeft + mapLeft + mapWidth / 2,
+          y: top + sheetTop - mapTop - mapHeight / 2,
+        }, { left: margin, top, width: printableWidth, height: printableHeight });
         page.pushOperators(popGraphicsState());
       }
     }

@@ -49,12 +49,12 @@ Every field shown in the example is required. A missing field is a validation er
 |---|---|
 | `worldWidthFeet` | Physical world width represented by the image |
 | `grid.style` | `square` or `iso` |
-| `grid.isoAngleDegrees` | Isometric grid angle for ISO grids, or `null` for square grids |
+| `grid.isoAngleDegrees` | Angle between ISO grid axes, 15 to 90 degrees, or `null` for square grids |
 | `grid.rotationDegrees` | Grid rotation |
-| `grid.offsetX` | Horizontal grid offset in cell-spacing units |
-| `grid.offsetY` | Vertical grid offset in cell-spacing units |
+| `grid.offsetX` | Offset along the first lattice axis from the image center, in cell units |
+| `grid.offsetY` | Offset along the downward lattice axis from the image center, in cell units |
 | `grid.inchesPerFiveFeet` | Printed inches representing five world feet |
-| `grid.lineStyle` | `solid`, `dash1`, `dash2`, `dash3` |
+| `grid.lineStyle` | `solid`/`line`, `dash32`, `dash16`, `dash12`, `dash8`/`dash`, `dash4`, `corners`/`corner`, `none`, or legacy `dash1`, `dash2`, `dash3` |
 | `grid.color` | Named grid color |
 | `grid.lineWidthPoints` | Grid stroke width in PDF points |
 | `grid.opacity` | Grid stroke opacity from 0 to 1 |
@@ -101,7 +101,7 @@ Every field shown in the example is required. A missing field is a validation er
 
 World height is calculated from the source image's aspect ratio.
 
-The physical image dimensions are determined by `worldWidthFeet` and `inchesPerFiveFeet`. The Worker must not silently change the requested print scale to make the image fit.
+The physical image dimensions are determined by `worldWidthFeet` and `inchesPerFiveFeet`. The Worker uses the requested scale when the image fits and reduces the map and grid by the same factor when needed.
 
 ### Image Scale and Page Layout
 
@@ -109,7 +109,7 @@ The interactive `vtt_slicer` exporter used the image dimensions to determine the
 
 - **Image size.** Printed width in inches is `worldWidthFeet / 5 × inchesPerFiveFeet`. Printed height is the printed width multiplied by the JPG's pixel height divided by its pixel width. For example, an 80-foot-wide map at 1 inch per 5 feet prints 16 inches wide.
 - **Page array.** The template specifies Letter or Ledger, portrait or landscape, and the exact number of rows and columns. For each axis, the assembled printable span is the sheet count times the printable sheet span, minus `page.overlapInches` for each join. The printable sheet span subtracts twice `page.marginInches` from the sheet span.
-- **Placement.** Center the image once in the assembled printable canvas, with equal space on opposite sides along each axis. Each sheet shows its portion of that canvas. If the image exceeds either canvas dimension, return a fit error at the requested scale.
+- **Placement.** Center the image once in the assembled printable canvas, with equal space on opposite sides along each axis. Each sheet shows its portion of that canvas. If the image exceeds either canvas dimension, shrink it proportionally before centering.
 
 ## 4. Rendering Behavior
 
@@ -119,7 +119,7 @@ The Worker performs the following operations:
 2. Resolve the template from the uploaded JSON or R2 alias.
 3. Calculate the image's physical dimensions from the world scale and source aspect ratio.
 4. Calculate the assembled printable canvas from the page size, orientation, margins, overlap, and page array.
-5. Confirm that the image fits within the available canvas.
+5. Reduce the scale proportionally when needed to fit the available canvas.
 6. Center the image within the assembled canvas.
 7. Generate the requested grid using the specified style, angle, rotation, offsets, scale, line style, color, stroke width, and opacity.
 8. Extend the grid across the entire printable canvas, including areas beyond the image.
@@ -140,7 +140,7 @@ Pages must not be omitted simply because they contain no image artwork. Every pa
 
 The service must preserve grid alignment across page boundaries.
 
-If the image cannot fit at the requested physical scale, the service returns a descriptive validation error rather than automatically shrinking it.
+The page array determines the available area. The map and grid shrink together when the requested print scale exceeds that area.
 
 ## 5. Output
 

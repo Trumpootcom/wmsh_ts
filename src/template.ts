@@ -1,4 +1,5 @@
 import { PageSizes, rgb } from "pdf-lib";
+import { gridLineStyles } from "./grid";
 
 const pageSizes = { letter: PageSizes.Letter, ledger: [792, 1224] as const };
 const colors = {
@@ -6,7 +7,6 @@ const colors = {
   gray: rgb(0.5, 0.5, 0.5),
   white: rgb(1, 1, 1),
 };
-const dashArrays = { solid: [], dash1: [2, 2], dash2: [4, 2], dash3: [8, 4] };
 
 function invalid(field: string, expected: string): never {
   throw new Error(`${field} must be ${expected}.`);
@@ -46,8 +46,9 @@ export function readTemplate(value: unknown) {
   if (template.imagePlacement !== "center") invalid("imagePlacement", "center");
   const grid = object(template.grid, "grid");
   const style = option(grid.style, "grid.style", ["square", "iso"]);
+  let isoAngle = 90;
   if (style === "iso") {
-    number(grid.isoAngleDegrees, "grid.isoAngleDegrees", (value) => value > 0 && value < 90, "between 0 and 90 degrees");
+    isoAngle = number(grid.isoAngleDegrees, "grid.isoAngleDegrees", (value) => value >= 15 && value <= 90, "between 15 and 90 degrees");
   } else if (grid.isoAngleDegrees !== null) {
     invalid("grid.isoAngleDegrees", "null for a square grid");
   }
@@ -55,7 +56,7 @@ export function readTemplate(value: unknown) {
   const offsetX = number(grid.offsetX, "grid.offsetX", Number.isFinite, "a finite number");
   const offsetY = number(grid.offsetY, "grid.offsetY", Number.isFinite, "a finite number");
   const inchesPerFiveFeet = number(grid.inchesPerFiveFeet, "grid.inchesPerFiveFeet", positive, "a positive number");
-  const lineStyle = option(grid.lineStyle, "grid.lineStyle", ["solid", "dash1", "dash2", "dash3"]);
+  const pattern = option(grid.lineStyle, "grid.lineStyle", gridLineStyles);
   const color = option(grid.color, "grid.color", ["black", "gray", "white"]);
   const thickness = number(grid.lineWidthPoints, "grid.lineWidthPoints", positive, "a positive number");
   const opacity = number(grid.opacity, "grid.opacity", (value) => value >= 0 && value <= 1, "between 0 and 1");
@@ -68,7 +69,6 @@ export function readTemplate(value: unknown) {
   const columns = number(page.columns, "page.columns", positiveInteger, "a positive integer");
   const marginInches = number(page.marginInches, "page.marginInches", nonnegative, "a nonnegative number");
   const overlapInches = number(page.overlapInches, "page.overlapInches", nonnegative, "a nonnegative number");
-  if (style !== "square") throw new Error("This prototype supports square grids only.");
   if (rows * columns > 100) throw new Error("The page array cannot exceed 100 sheets.");
   const [shortEdge, longEdge] = pageSizes[size];
   const [pageWidth, pageHeight] = orientation === "portrait" ? [shortEdge, longEdge] : [longEdge, shortEdge];
@@ -85,7 +85,7 @@ export function readTemplate(value: unknown) {
   return {
     pageWidth, pageHeight, margin, spacing, rows, columns, overlap: overlapInches * 72,
     mapWidth: (worldWidthFeet / 5) * spacing,
-    rotation, offsetX, offsetY,
-    lineStyle: { thickness, color: colors[color], opacity, dashArray: dashArrays[lineStyle] },
+    rotation, isoAngle, offsetX, offsetY,
+    lineStyle: { thickness, color: colors[color], opacity, pattern },
   };
 }
