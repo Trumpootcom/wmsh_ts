@@ -89,13 +89,14 @@ TEMPLATE FIELDS
                           the same effect as 0.1, and -1 and +1 match 0.
   grid.inchesPerFiveFeet  Printed inches per five-foot cell. Use a positive
                           number that gives at least 0.25 PDF points of spacing.
-  grid.lineStyle          "solid" (alias "line"), "dash32", "dash16",
-                          "dash12", "dash8" (alias "dash"), "dash4",
-                          "corners" (alias "corner"), or "none".
-                          These patterns scale with the cell edge. "dash32"
-                          draws one quarter, skips half, and draws one quarter.
+  grid.lineStyle          "solid", "dash-1", "dash-2", "dash-3", "dash-4",
+                          "dash-5", "dash-6", "dash-8", "dash-10", "dash-16",
+                          "corners", or "none".
+                          The number is the dash count per cell edge,
+                          counting the two end pieces as one dash. Patterns
+                          scale with the cell edge. "dash-1" draws one
+                          quarter, skips half, and draws one quarter.
                           "corners" draws one eighth at each end.
-                          "dash1", "dash2", and "dash3" use legacy PDF-point lengths.
   grid.color              "black", "gray", or "white".
   grid.lineWidthPoints    Positive stroke width in PDF points (72 per inch).
   grid.opacity            Number from 0 (transparent) to 1 (opaque).
@@ -159,7 +160,7 @@ ${overrideReference}
   Quote the full URL in your shell when combining overrides with &.
   Encode spaces in names as %20. The fit-to-page rule still applies.
 
-  curl.exe --fail-with-body -F "image=@map.jpg" -F "template_file=@template.json" -o map.pdf "https://wmsh-ts.trumpoot.workers.dev/render?wid=160&gstyle=iso&gangle=60&gline=dash4&pr=2&pc=2&psize=ledger&porient=landscape"
+  curl.exe --fail-with-body -F "image=@map.jpg" -F "template_file=@template.json" -o map.pdf "https://wmsh-ts.trumpoot.workers.dev/render?wid=160&gstyle=iso&gangle=60&gline=dash-8&pr=2&pc=2&psize=ledger&porient=landscape"
 
 STATUS CODES
 

@@ -1,5 +1,5 @@
 import { PageSizes, rgb } from "pdf-lib";
-import { gridLineStyles } from "./grid";
+import { gridLineStyles, normalizeGridLineStyle } from "./grid";
 import { applyOverrides } from "./templateOverrides";
 
 const pageSizes = { letter: PageSizes.Letter, ledger: [792, 1224] as const };
@@ -57,7 +57,7 @@ export function readTemplate(value: unknown, params = new URLSearchParams()) {
   const offsetX = number(grid.offsetX, "grid.offsetX", Number.isFinite, "a finite number");
   const offsetY = number(grid.offsetY, "grid.offsetY", Number.isFinite, "a finite number");
   const inchesPerFiveFeet = number(grid.inchesPerFiveFeet, "grid.inchesPerFiveFeet", positive, "a positive number");
-  const pattern = option(grid.lineStyle, "grid.lineStyle", gridLineStyles);
+  const pattern = normalizeGridLineStyle(option(grid.lineStyle, "grid.lineStyle", gridLineStyles));
   const color = option(grid.color, "grid.color", ["black", "gray", "white"]);
   const thickness = number(grid.lineWidthPoints, "grid.lineWidthPoints", positive, "a positive number");
   const opacity = number(grid.opacity, "grid.opacity", (value) => value >= 0 && value <= 1, "between 0 and 1");

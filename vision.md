@@ -54,7 +54,7 @@ Every field shown in the example is required. A missing field is a validation er
 | `grid.offsetX` | Offset along the first lattice axis from the image center, in cell units |
 | `grid.offsetY` | Offset along the downward lattice axis from the image center, in cell units |
 | `grid.inchesPerFiveFeet` | Printed inches representing five world feet |
-| `grid.lineStyle` | `solid`/`line`, `dash32`, `dash16`, `dash12`, `dash8`/`dash`, `dash4`, `corners`/`corner`, `none`, or legacy `dash1`, `dash2`, `dash3` |
+| `grid.lineStyle` | `solid`, `dash-1`, `dash-2`, `dash-3`, `dash-4`, `dash-5`, `dash-6`, `dash-8`, `dash-10`, `dash-16`, `corners`, or `none`. The number gives the dash count per cell edge. |
 | `grid.color` | Named grid color |
 | `grid.lineWidthPoints` | Grid stroke width in PDF points |
 | `grid.opacity` | Grid stroke opacity from 0 to 1 |

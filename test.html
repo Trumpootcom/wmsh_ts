@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Headless WMS · Test drive</title>
+<style>
+  * { box-sizing: border-box }
+  body { margin: 0; color: #192c25; background: #f6f7f3; font: 15px/1.45 "Inter", system-ui, sans-serif }
+  header { height: 64px; padding: 0 24px; background: #192c25; color: #fff; display: flex; align-items: center; gap: 14px }
+  h1 { margin: 0; font-size: 19px } header span { color: #bacbc2 }
+  main { display: grid; grid-template-columns: minmax(258px, 20%) minmax(0, 1fr); height: calc(100dvh - 64px) }
+  aside { overflow: auto; border-right: 1px solid #cbd5cb }
+  form { padding: 18px }
+  fieldset { margin: 17px 0 0; padding: 10px 0 0; border: 0; border-top: 1px solid #cbd5cb }
+  legend { padding-right: 8px; font-weight: 700 }
+  label { display: grid; gap: 4px; margin-bottom: 9px; font-size: 13px }
+  label span { display: flex; justify-content: space-between; gap: 6px; overflow-wrap: anywhere }
+  small { color: #526960; font: 11px ui-monospace, monospace }
+  input, select, button { width: 100%; min-width: 0; font: inherit; padding: 7px 9px; border: 1px solid #aebdb3; border-radius: 5px; background: white; color: inherit }
+  input:focus-visible, select:focus-visible, button:focus-visible, a:focus-visible { outline: 2px solid #117951; outline-offset: 2px }
+  button { background: #176447; color: white; cursor: pointer; font-weight: 650 }
+  button:disabled { opacity: .65; cursor: wait }
+  .submit { position: sticky; bottom: 0; background: #f6f7f3; padding: 10px 0 4px }
+  section { display: flex; flex-direction: column; min-height: 0; background: #e6ebe5 }
+  .bar { min-height: 45px; display: flex; align-items: center; gap: 12px; justify-content: space-between; padding: 8px 18px; background: #fff; border-bottom: 1px solid #cbd5cb }
+  .bar p { margin: 0; overflow-wrap: anywhere } a { color: #176447; white-space: nowrap }
+  iframe { width: 100%; flex: 1; min-height: 0; border: 0 }
+  [hidden] { display: none !important }
+  .empty { margin: auto; padding: 20px; text-align: center; color: #526960 }
+  @media (max-width: 650px) { main { display: block; height: auto } aside { border-right: 0 } section { height: 75vh } }
+</style>
+<header><h1>Headless WMS</h1><span>Test drive</span></header>
+<main>
+  <aside aria-label="Render settings">
+    <form id="settings">
+      <label>Renderer<select id="renderer"><option value="http://127.0.0.1:8787/render">Local (port 8787)</option><option value="https://wmsh-ts.trumpoot.workers.dev/render">Live (Cloudflare)</option></select></label>
+      <label>Map JPG<input type="file" id="image" accept="image/jpeg,.jpg,.jpeg" required></label>
+      <fieldset><legend>Map</legend><label><span>name <small>name</small></span><input name="name" value="160x100ft-Z100-2x2-LEDGER-LS" required></label><label><span>worldWidthFeet <small>wid</small></span><input name="wid" value="160" type="number" step="any" required></label><label><span>imagePlacement <small>place</small></span><select name="place"><option selected>center</option></select></label></fieldset><fieldset><legend>Grid</legend><label><span>grid.style <small>gstyle</small></span><select name="gstyle"><option selected>square</option><option>iso</option></select></label><label><span>grid.isoAngleDegrees <small>gangle</small></span><input name="gangle" value="" type="number" step="any" min="15" max="90" placeholder="15–90"></label><label><span>grid.rotationDegrees <small>grot</small></span><input name="grot" value="0" type="number" step="any" required></label><label><span>grid.offsetX <small>gx</small></span><input name="gx" value="0" type="number" step="any" required></label><label><span>grid.offsetY <small>gy</small></span><input name="gy" value="0" type="number" step="any" required></label><label><span>grid.inchesPerFiveFeet <small>gscale</small></span><input name="gscale" value="1" type="number" step="any" required></label><label><span>grid.lineStyle <small>gline</small></span><select name="gline"><option selected>solid</option><option>none</option><option>dash-1</option><option>dash-2</option><option>dash-3</option><option>dash-4</option><option>dash-5</option><option>dash-6</option><option>dash-8</option><option>dash-10</option><option>dash-16</option><option>corners</option></select></label><label><span>grid.color <small>gcolor</small></span><select name="gcolor"><option selected>black</option><option>gray</option><option>white</option></select></label><label><span>grid.lineWidthPoints <small>gpt</small></span><input name="gpt" value="2.5" type="number" step="any" required></label><label><span>grid.opacity <small>gopacity</small></span><input name="gopacity" value="0.6" type="number" step="any" required></label><label><span>grid.extent <small>gextent</small></span><select name="gextent"><option selected>printableCanvas</option></select></label></fieldset><fieldset><legend>Paper</legend><label><span>page.size <small>psize</small></span><select name="psize"><option>letter</option><option selected>ledger</option></select></label><label><span>page.orientation <small>porient</small></span><select name="porient"><option>portrait</option><option selected>landscape</option></select></label><label><span>page.rows <small>pr</small></span><input name="pr" value="2" type="number" step="any" required></label><label><span>page.columns <small>pc</small></span><input name="pc" value="2" type="number" step="any" required></label><label><span>page.marginInches <small>pmargin</small></span><input name="pmargin" value="0.25" type="number" step="any" required></label><label><span>page.overlapInches <small>poverlap</small></span><input name="poverlap" value="0.125" type="number" step="any" required></label></fieldset>
+      <div class="submit"><button>Render PDF</button></div>
+    </form>
+  </aside>
+  <section aria-label="PDF preview">
+    <div class="bar"><p id="status" role="status">PDF preview</p><a id="download" download="map.pdf" hidden>Download PDF</a></div>
+    <p id="empty" class="empty">Choose a JPG and select Render PDF.</p>
+    <iframe id="preview" title="Rendered map PDF" hidden></iframe>
+  </section>
+</main>
+<script>
+  const form = document.querySelector("#settings");
+  const status = document.querySelector("#status");
+  const preview = document.querySelector("#preview");
+  const download = document.querySelector("#download");
+  const button = form.querySelector("button");
+  const style = form.elements.gstyle;
+  const angle = form.elements.gangle;
+  let pdfUrl;
+
+  function updateAngle() {
+    angle.disabled = style.value === "square";
+    angle.required = !angle.disabled;
+    if (!angle.disabled && !angle.value) angle.value = "60";
+  }
+  style.addEventListener("change", updateAngle);
+  updateAngle();
+
+  function decimal(value) {
+    const [mantissa, exponent] = value.toLowerCase().split("e");
+    if (exponent === undefined) return value;
+    const sign = mantissa.startsWith("-") ? "-" : "";
+    const [whole, fraction = ""] = mantissa.slice(sign.length).split(".");
+    const digits = whole + fraction;
+    const point = whole.length + Number(exponent);
+    if (point <= 0) return sign + "0." + "0".repeat(-point) + digits;
+    if (point >= digits.length) return sign + digits.padEnd(point, "0");
+    return sign + digits.slice(0, point) + "." + digits.slice(point);
+  }
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const formValues = new FormData(form);
+    const upload = new FormData();
+    const image = document.querySelector("#image").files[0];
+    upload.append("image", image);
+    const params = new URLSearchParams(formValues);
+    for (const input of form.querySelectorAll('input[type="number"]:enabled')) {
+      params.set(input.name, decimal(input.value));
+    }
+    if (style.value === "square") params.set("gangle", "null");
+    const fileName = image.name.replace(/\.[^.]+$/, "") + ".pdf";
+    button.disabled = true;
+    status.textContent = "Rendering…";
+    if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+    preview.hidden = true;
+    preview.removeAttribute("src");
+    download.hidden = true;
+    document.querySelector("#empty").hidden = true;
+    try {
+      const response = await fetch(document.querySelector("#renderer").value + "?" + params, { method: "POST", body: upload });
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || "Render failed (HTTP " + response.status + ").");
+      }
+      if (!response.headers.get("Content-Type")?.startsWith("application/pdf")) {
+        throw new Error("The renderer returned an unexpected response.");
+      }
+      pdfUrl = URL.createObjectURL(await response.blob());
+      preview.src = pdfUrl;
+      preview.hidden = false;
+      download.href = pdfUrl;
+      download.download = fileName;
+      download.hidden = false;
+      status.textContent = "PDF ready";
+    } catch (error) {
+      status.textContent = error instanceof TypeError ? "Could not reach the renderer. Check that the selected endpoint is running and allows browser requests." : error.message;
+    } finally {
+      button.disabled = false;
+    }
+  });
+</script>
+</html>

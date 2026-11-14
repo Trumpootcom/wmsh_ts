@@ -2,19 +2,37 @@ import type { PDFPage, RGB } from "pdf-lib";
 
 // Alternating stroke and gap lengths along one edge, in 64ths of that edge.
 const patterns = {
-  dash32: [16, 32, 16],
-  dash16: [8, 16, 16, 16, 8],
-  dash12: [6, 9, 12, 10, 12, 9, 6],
-  dash8: [4, 8, 8, 8, 8, 8, 8, 8, 4],
-  dash4: [2, ...Array<number>(15).fill(4), 2],
+  "dash-1": [16, 32, 16],
+  "dash-2": [8, 16, 16, 16, 8],
+  "dash-3": [5, 11, 10, 12, 10, 11, 5],
+  "dash-4": [4, 8, 8, 8, 8, 8, 8, 8, 4],
+  "dash-5": [3, 6, 6, 7, 6, 8, 6, 7, 6, 6, 3],
+  "dash-6": [3, 5, 5, 6, 5, 6, 5, 6, 5, 6, 5, 5, 2],
+  "dash-8": [2, ...Array<number>(15).fill(4), 2],
+  "dash-10": [2, 3, 3, 3, 3, 3, 3, 4, 3, 4, 3, 4, 3, 4, 3, 3, 3, 3, 3, 3, 1],
+  "dash-16": [1, ...Array<number>(31).fill(2), 1],
   corners: [8, 48, 8],
 };
-const legacyPatterns = { dash1: [2, 2], dash2: [4, 2], dash3: [8, 4] };
-export const gridLineStyles = [
-  "solid", "line", "dash32", "dash16", "dash12", "dash8", "dash", "dash4",
-  "corners", "corner", "none", "dash1", "dash2", "dash3",
-] as const;
-type LineStyle = typeof gridLineStyles[number];
+const legacyPatterns = { dash1: [2, 2], dash3: [8, 4] };
+const styleAliases = {
+  line: "solid",
+  dash32: "dash-1",
+  dash16: "dash-2",
+  dash12: "dash-3",
+  dash8: "dash-4",
+  dash: "dash-4",
+  dash4: "dash-8",
+  dash2: "dash-16",
+  corner: "corners",
+} as const;
+type LineStyle = "solid" | "none" | keyof typeof patterns | keyof typeof legacyPatterns;
+export const gridLineStyles = ["solid", "none", ...Object.keys(patterns), ...Object.keys(legacyPatterns), ...Object.keys(styleAliases)];
+
+export function normalizeGridLineStyle(style: string): LineStyle {
+  return Object.hasOwn(styleAliases, style)
+    ? styleAliases[style as keyof typeof styleAliases]
+    : style as LineStyle;
+}
 type Point = { x: number; y: number };
 type Settings = {
   spacing: number;
@@ -31,17 +49,21 @@ type Settings = {
 };
 
 function dashOptions(style: LineStyle, edgeLength: number, startIndex: number) {
-  if (style === "solid" || style === "line" || style === "none") return {};
-  if (style === "dash1" || style === "dash2" || style === "dash3") {
+  if (style === "solid" || style === "none") return {};
+  if (style === "dash1" || style === "dash3") {
     const dashArray = legacyPatterns[style];
     const period = dashArray[0] + dashArray[1];
     return { dashArray, dashPhase: ((startIndex * edgeLength % period) + period) % period };
   }
-  const pattern = patterns[style === "dash" ? "dash8" : style === "corner" ? "corners" : style];
+  const pattern = patterns[style];
   const unit = edgeLength / 64;
-  // Join the two end strokes at each intersection and start midway through it.
-  const end = pattern[0] * unit;
-  return { dashArray: [2 * end, ...pattern.slice(1, -1).map((part) => part * unit)], dashPhase: end };
+  // Join adjacent end strokes and skip the portion before the intersection.
+  const first = pattern[0];
+  const last = pattern[pattern.length - 1];
+  return {
+    dashArray: [first + last, ...pattern.slice(1, -1)].map((part) => part * unit),
+    dashPhase: last * unit,
+  };
 }
 
 export function drawGrid(

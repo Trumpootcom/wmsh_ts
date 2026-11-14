@@ -23,3 +23,5 @@ The Worker supports Letter or Ledger in either orientation, plus square and isom
 Run `npm.cmd run typecheck` to generate the Worker types and check the TypeScript.
 
 Omit `template_file` to use the bundled [160-foot-wide, 2×2 landscape Ledger template](src/default.json). URL overrides apply to both bundled and uploaded templates.
+
+Open [test.html](test.html) directly in your browser. Select a JPG, adjust the settings, and click **Render PDF**. Choose **Local** with `npm.cmd run dev` running on port 8787, or choose **Live** once Cloudflare has deployed support for requests from the standalone page.
