@@ -43,7 +43,7 @@
 <main>
   <aside aria-label="Render settings">
     <form id="settings" novalidate>
-      <label>
+      <label id="renderer-choice" hidden>
         Renderer
         <select id="renderer"><option value="http://127.0.0.1:8787/render">Local (port 8787)</option><option value="https://wmsh-ts.trumpoot.workers.dev/render">Live (Cloudflare)</option></select>
       </label>
@@ -171,11 +171,14 @@
   const angle = form.elements.gangle;
   let pdfUrl;
   const renderer = document.querySelector("#renderer");
+  const openedFromDisk = location.protocol === "file:";
+  document.querySelector("#renderer-choice").hidden = !openedFromDisk;
+  const renderEndpoint = () => openedFromDisk ? renderer.value : new URL("/render", location.origin).href;
   const empty = document.querySelector("#empty");
 
   for (const helpButton of document.querySelectorAll("[data-help]")) {
     helpButton.addEventListener("click", () => {
-      preview.src = new URL(helpButton.dataset.help, renderer.value).href;
+      preview.src = new URL(helpButton.dataset.help, renderEndpoint()).href;
       preview.title = helpButton.textContent;
       preview.hidden = false;
       empty.hidden = true;
@@ -230,7 +233,7 @@
     button.disabled = true;
     status.textContent = "Rendering…";
     try {
-      const response = await fetch(renderer.value + "?" + params, { method: "POST", body: upload });
+      const response = await fetch(renderEndpoint() + "?" + params, { method: "POST", body: upload });
       if (!response.ok) {
         const error = await response.json().catch(() => ({}));
         throw new Error(error.error || "Render failed (HTTP " + response.status + ").");

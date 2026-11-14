@@ -26,4 +26,6 @@ Omit `template_file` to use the bundled [160-foot-wide, 2×2 landscape Ledger te
 
 The bundled template prepends a landscape assembly guide titled **TTRPG Battle Map**. Use `?overview=0` or turn off **Overview page** in `test.html` to omit it. Custom templates can set `"overview": true` or use `?overview=1` to include it.
 
-Open [test.html](test.html) directly in your browser. Select a JPEG, PNG, or static WebP, adjust the settings, and click **Render PDF**. Choose **Local** with `npm.cmd run dev` running on port 8787, or choose **Live** once Cloudflare has deployed support for requests from the standalone page.
+Open the [hosted test page](https://wmsh-ts.trumpoot.workers.dev/test.html), or run `npm.cmd run dev` and visit `http://127.0.0.1:8787/test.html`. The served page uses its own Worker for rendering and help. Select a JPEG, PNG, or static WebP, adjust the settings, and click **Render PDF**.
+
+You can also open [public/test.html](public/test.html) directly from disk and choose **Local** or **Live**.
