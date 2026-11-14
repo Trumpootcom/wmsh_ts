@@ -1,4 +1,4 @@
-import { BlendMode, clip, endPath, PDFDocument, popGraphicsState, pushGraphicsState, rectangle, rgb, StandardFonts, type PDFFont, type PDFPage } from "pdf-lib";
+import { BlendMode, clip, endPath, PDFDocument, popGraphicsState, pushGraphicsState, rectangle, rgb, StandardFonts } from "pdf-lib";
 import { readTemplate } from "./template";
 import { help } from "./help";
 import { urlHelp } from "./urlHelp";
@@ -7,33 +7,11 @@ import defaultTemplate from "./default.json";
 import { decode } from "jpeg-js";
 import { drawContrastGrid } from "./contrast";
 import { workingJpeg } from "./workingImage";
+import { addOverview } from "./overview";
+import { drawSheetBadge } from "./sheetBadge";
 
 function error(message: string, status: number, headers?: HeadersInit) {
   return Response.json({ error: message }, { status, headers });
-}
-
-function drawPageNumber(page: PDFPage, font: PDFFont, row: number, column: number, margin: number) {
-  let columnLabel = "";
-  for (let index = column + 1; index > 0; index = Math.floor((index - 1) / 26)) {
-    columnLabel = String.fromCharCode(65 + (index - 1) % 26) + columnLabel;
-  }
-  const label = `${columnLabel}${row + 1}`;
-  const size = 18;
-  const height = 24;
-  const inset = margin + 1;
-  const radius = 6;
-  const textWidth = font.widthOfTextAtSize(label, size);
-  const width = Math.max(36, textWidth + 20);
-  const x = column === 0 ? inset : page.getWidth() - inset - width;
-  const y = row === 0 ? page.getHeight() - inset - height : inset;
-  const black = rgb(0, 0, 0);
-  page.drawSvgPath(
-    `M ${radius} 0 H ${width - radius} Q ${width} 0 ${width} ${radius}
-     V ${height - radius} Q ${width} ${height} ${width - radius} ${height}
-     H ${radius} Q 0 ${height} 0 ${height - radius} V ${radius} Q 0 0 ${radius} 0 Z`,
-    { x, y: y + height, color: rgb(1, 1, 1), borderColor: black, borderWidth: 1.625 },
-  );
-  page.drawText(label, { x: x + (width - textWidth) / 2, y: y + 5.6, size, font, color: black });
 }
 
 export default {
@@ -100,6 +78,12 @@ async function handleRequest(request: Request): Promise<Response> {
     }
   }
   let template;
+  const overviewValues = searchParams.getAll("overview");
+  const [overview] = overviewValues;
+  if (overviewValues.length > 1 || (overview !== undefined && overview !== "0" && overview !== "1")) {
+    return error("Specify overview once as 0 or 1.", 422);
+  }
+  searchParams.delete("overview");
   try {
     template = readTemplate(json, searchParams);
   } catch (failure) {
@@ -137,11 +121,9 @@ async function handleRequest(request: Request): Promise<Response> {
   const canvasHeight = printableHeight + (rows - 1) * stepY;
   const mapWidth = Math.min(requestedWidth, canvasWidth, canvasHeight / aspect);
   const mapHeight = mapWidth * aspect;
-  const spacing = template.spacing * (mapWidth / requestedWidth);
-  if (mapHeight <= 0 || spacing < 0.25) {
-    return error("The fitted scale produces invalid dimensions or grid spacing below 0.25 PDF points.", 422);
+  if (mapWidth <= 0 || mapHeight <= 0) {
+    return error("The fitted image has invalid dimensions.", 422);
   }
-  const fittedGrid = { ...template, spacing };
 
   const mapLeft = (canvasWidth - mapWidth) / 2;
   const mapTop = (canvasHeight - mapHeight) / 2;
@@ -158,6 +140,12 @@ async function handleRequest(request: Request): Promise<Response> {
   }
 
   const pageNumberFont = await pdf.embedFont(StandardFonts.HelveticaBold);
+  if (overview === "1") {
+    await addOverview(pdf, image, pageNumberFont, template, {
+      canvasWidth, canvasHeight, mapWidth, mapHeight, mapLeft, mapTop,
+      stepX, stepY, printableWidth, printableHeight,
+    }, contrastSource);
+  }
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < columns; col++) {
       const sheetLeft = col * stepX;
@@ -165,7 +153,7 @@ async function handleRequest(request: Request): Promise<Response> {
       const page = pdf.addPage([pageWidth, pageHeight]);
       page.pushOperators(pushGraphicsState(), rectangle(margin, margin, printableWidth, printableHeight), clip(), endPath());
 
-      if (fittedGrid.lineStyle.blendMode === BlendMode.Difference && fittedGrid.lineStyle.pattern !== "none") {
+      if (template.lineStyle.blendMode === BlendMode.Difference && template.lineStyle.pattern !== "none") {
         // Difference needs an opaque backdrop even where the JPG does not reach.
         page.drawRectangle({
           x: margin, y: margin, width: printableWidth, height: printableHeight,
@@ -184,18 +172,20 @@ async function handleRequest(request: Request): Promise<Response> {
       }
 
       if (contrastSource) {
-        drawContrastGrid(pdf, page, fittedGrid,
+        drawContrastGrid(pdf, page, template,
           { x: canvasWidth / 2, y: canvasHeight / 2 },
           { left: sheetLeft, top: sheetTop, width: printableWidth, height: printableHeight },
           { left: mapLeft, top: mapTop, width: mapWidth, height: mapHeight }, contrastSource);
       } else if (!template.adaptiveContrast) {
-        drawGrid(page, fittedGrid, {
+        drawGrid(page, template, {
           x: margin - sheetLeft + mapLeft + mapWidth / 2,
           y: top + sheetTop - mapTop - mapHeight / 2,
         }, { left: margin, top, width: printableWidth, height: printableHeight });
       }
       page.pushOperators(popGraphicsState());
-      drawPageNumber(page, pageNumberFont, row, col, margin);
+      drawSheetBadge(page, pageNumberFont, row, col, {
+        left: margin, bottom: margin, width: printableWidth, height: printableHeight,
+      });
     }
   }
 

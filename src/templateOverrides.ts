@@ -1,6 +1,7 @@
 export const aliases = {
   wid: ["worldWidthFeet", "decimal"],
   name: ["name", "text"],
+  title: ["title", "text"],
   place: ["imagePlacement", "text"],
   gstyle: ["grid.style", "text"],
   gangle: ["grid.isoAngleDegrees", "nullableDecimal"],

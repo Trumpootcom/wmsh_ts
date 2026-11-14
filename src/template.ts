@@ -1,6 +1,7 @@
 import { BlendMode, PageSizes, rgb } from "pdf-lib";
 import { gridLineStyles, normalizeGridLineStyle } from "./grid";
 import { applyOverrides } from "./templateOverrides";
+import defaults from "./default.json";
 
 const pageSizes = { letter: PageSizes.Letter, ledger: [792, 1224] as const };
 const colors = {
@@ -40,9 +41,12 @@ const positiveInteger = (value: number) => Number.isSafeInteger(value) && value 
 export function readTemplate(value: unknown, params = new URLSearchParams()) {
   const source = object(value, "template");
   if (source.schemaVersion !== 1) invalid("schemaVersion", "1");
-  const { template, grid, page } = applyOverrides(source, object(source.grid, "grid"), object(source.page, "page"), params);
+  const { template, grid, page } = applyOverrides({ title: defaults.title, ...source }, object(source.grid, "grid"), object(source.page, "page"), params);
   if (typeof template.name !== "string" || !template.name.trim()) {
     invalid("name", "a non-empty string");
+  }
+  if (typeof template.title !== "string" || !template.title.trim()) {
+    invalid("title", "a non-empty string");
   }
   const worldWidthFeet = number(template.worldWidthFeet, "worldWidthFeet", positive, "a positive number");
   if (template.imagePlacement !== "center") invalid("imagePlacement", "center");
@@ -83,6 +87,7 @@ export function readTemplate(value: unknown, params = new URLSearchParams()) {
   }
 
   return {
+    name: template.name, title: template.title.trim(), worldWidthFeet, style, color, size, orientation,
     pageWidth, pageHeight, margin, spacing, rows, columns, overlap: overlapInches * 72,
     mapWidth: (worldWidthFeet / 5) * spacing,
     rotation, isoAngle, offsetX, offsetY, adaptiveContrast: color === "contrast",

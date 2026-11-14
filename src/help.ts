@@ -44,6 +44,7 @@ EXAMPLE TEMPLATE
 {
   "schemaVersion": 1,
   "name": "2 x 2 landscape Letter map",
+  "title": "TTRPG Battle Map",
   "worldWidthFeet": 65,
   "imagePlacement": "center",
   "grid": {
@@ -73,7 +74,8 @@ TEMPLATE FIELDS
 
   schemaVersion           Use 1.
   name                    Any non-empty descriptive string.
-  worldWidthFeet          Positive number of world feet across the image.
+  title                   Optional overview heading. Defaults to TTRPG Battle Map.
+  worldWidthFeet          Requested world width in feet before fitting.
   imagePlacement          Use "center" to center the image across all sheets.
 
   grid.style              "square" or "iso".
@@ -150,10 +152,10 @@ some sheets contain only grid. The column letter and row number in each
 corner badge identify the sheet. PDF order runs across each row, then
 down to the next row. Adjacent sheets repeat the same artwork
 and grid in the overlap. If either dimension exceeds the assembled
-printable area, the Worker shrinks the image and grid proportionally
-until both dimensions fit, then centers the map across the sheets.
-Choose a larger sheet layout to preserve the requested physical scale
-when the map would otherwise shrink.
+printable area, the Worker shrinks the image proportionally and centers
+it across the sheets. Grid spacing stays at the requested print scale,
+so the fitted image represents fewer world feet. Choose a larger sheet
+layout to preserve the requested world dimensions.
 
 HTTP REQUEST AND RESPONSE
 
@@ -162,6 +164,10 @@ HTTP REQUEST AND RESPONSE
   POST /render  Send multipart/form-data with one JPEG, PNG, or static WebP file in "image"
                 and optionally one JSON file in "template_file".
                 Omitting that field uses the built-in default.
+
+  Add ?overview=1 to prepend a landscape assembly guide on the selected
+  paper size. It shows cut lines, overlap, a scale bar, and render settings.
+  The numbered map sheets follow at their regular print scale.
 
 IMAGE NORMALIZATION
 
@@ -173,7 +179,7 @@ TEMPLATE OVERRIDES
 
   Add query parameters to POST /render to override template values for
   that request. Overrides apply to the default or the uploaded template.
-  A custom upload must include every template field, including schemaVersion.
+  A custom upload must include every required field, including schemaVersion.
   Use each alias once. Unknown or repeated aliases return 422. Numeric
   values use decimal notation. Use gangle=null with gstyle=square when
   starting from an ISO template.
@@ -183,7 +189,7 @@ ${overrideReference}
   Quote the full URL in your shell when combining overrides with &.
   Encode spaces in names as %20. The fit-to-page rule still applies.
 
-  curl.exe --fail-with-body -F "image=@map.jpg" -F "template_file=@template.json" -o map.pdf "https://wmsh-ts.trumpoot.workers.dev/render?wid=160&gstyle=iso&gangle=60&gline=dash-8&pr=2&pc=2&psize=ledger&porient=landscape"
+  curl.exe --fail-with-body -F "image=@map.jpg" -F "template_file=@template.json" -o map.pdf "https://wmsh-ts.trumpoot.workers.dev/render?overview=1&title=Goblin%20Ambush&wid=160&gstyle=iso&gangle=60&gline=dash-8&pr=2&pc=2&psize=ledger&porient=landscape"
 
 STATUS CODES
 

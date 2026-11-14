@@ -101,7 +101,7 @@ Every field shown in the example is required. A missing field is a validation er
 
 World height is calculated from the source image's aspect ratio.
 
-The physical image dimensions are determined by `worldWidthFeet` and `inchesPerFiveFeet`. The Worker uses the requested scale when the image fits and reduces the map and grid by the same factor when needed.
+The physical image dimensions are determined by `worldWidthFeet` and `inchesPerFiveFeet`. The Worker uses the requested scale when the image fits and shrinks the image when needed and preserves the requested grid spacing.
 
 ### Image Scale and Page Layout
 
@@ -119,7 +119,7 @@ The Worker performs the following operations:
 2. Resolve the template from the uploaded JSON or R2 alias.
 3. Calculate the image's physical dimensions from the world scale and source aspect ratio.
 4. Calculate the assembled printable canvas from the page size, orientation, margins, overlap, and page array.
-5. Reduce the scale proportionally when needed to fit the available canvas.
+5. Shrink the image proportionally when needed, then derive its effective world dimensions from the unchanged grid scale.
 6. Center the image within the assembled canvas.
 7. Generate the requested grid using the specified style, angle, rotation, offsets, scale, line style, color, stroke width, and opacity.
 8. Extend the grid across the entire printable canvas, including areas beyond the image.
@@ -140,7 +140,7 @@ Pages must not be omitted simply because they contain no image artwork. Every pa
 
 The service must preserve grid alignment across page boundaries.
 
-The page array determines the available area. The map and grid shrink together when the requested print scale exceeds that area.
+The page array determines the available area. The image shrinks when it exceeds that area. Grid spacing stays fixed, so the fitted image represents fewer world feet.
 
 ## 5. Output
 

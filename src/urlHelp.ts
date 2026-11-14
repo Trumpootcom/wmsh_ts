@@ -4,6 +4,7 @@ import { aliases } from "./templateOverrides";
 const descriptions: Record<keyof typeof aliases, string> = {
   wid: "World width in feet",
   name: "Template name",
+  title: "Overview title",
   place: "center",
   gstyle: "square or iso",
   gangle: "15 to 90 for ISO, null for square",
@@ -40,13 +41,15 @@ const table = Object.entries(aliases).map(([alias, [field]]) => {
 export const urlHelp = `HEADLESS WMS URL PARAMETERS
 
 Upload a JPEG, PNG, or static WebP. This PowerShell command uses the
-built-in template and overrides the world width to 120 feet.
+built-in template, overrides the world width to 120 feet, and adds a
+titled overview page.
 
-  curl.exe --fail-with-body -F "image=@map.png" -o map-120ft.pdf "https://wmsh-ts.trumpoot.workers.dev/render?wid=120"
+  curl.exe --fail-with-body -F "image=@map.png" -o map-120ft.pdf "https://wmsh-ts.trumpoot.workers.dev/render?wid=120&overview=1&title=Goblin%20Ambush"
 
 Use curl on macOS or Linux. Replace map.png with your image path.
 Add -F "template_file=@template.json" to use a complete custom template.
 Overrides apply to either template for the current request.
+Add overview=1 to prepend a landscape assembly guide (default: 0).
 
 ${row("Parameter", "JSON field", "Default", "Description or allowed values")}
 ${table}

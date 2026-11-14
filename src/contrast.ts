@@ -12,6 +12,7 @@ export function drawContrastGrid(
   rect: Rect,
   map: Rect,
   source: Raster,
+  destination = { left: (page.getWidth() - rect.width) / 2, top: (page.getHeight() + rect.height) / 2 },
 ) {
   const opacity = settings.lineStyle.opacity;
   if (opacity === 0) return;
@@ -103,8 +104,8 @@ export function drawContrastGrid(
   page.pushOperators(
     pushGraphicsState(),
     translate(
-      (page.getWidth() - rect.width) / 2 + x0 / scale - rect.left,
-      (page.getHeight() + rect.height) / 2 + rect.top - (y0 + height) / scale,
+      destination.left + x0 / scale - rect.left,
+      destination.top + rect.top - (y0 + height) / scale,
     ),
     scaleImage(width / scale, height / scale),
     drawObject(image),

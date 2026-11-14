@@ -8,6 +8,9 @@
   body { margin: 0; color: #192c25; background: #f6f7f3; font: 15px/1.45 "Inter", system-ui, sans-serif }
   header { height: 64px; padding: 0 24px; background: #192c25; color: #fff; display: flex; align-items: center; gap: 14px }
   h1 { margin: 0; font-size: 19px } header span { color: #bacbc2 }
+  header nav { display: flex; gap: 8px; margin-left: auto }
+  header nav button { width: auto; background: transparent; border-color: #82988c; white-space: nowrap }
+  header nav button:hover { background: #304a3f }
   main { display: grid; grid-template-columns: minmax(258px, 25%) minmax(0, 1fr); height: calc(100dvh - 64px) }
   aside { overflow: auto; border-right: 1px solid #cbd5cb }
   form { padding: 18px }
@@ -30,7 +33,13 @@
   .empty { margin: auto; padding: 20px; text-align: center; color: #526960 }
   @media (max-width: 650px) { main { display: block; height: auto } aside { border-right: 0 } section { height: 75vh } }
 </style>
-<header><h1>Headless WMS</h1><span>Test drive</span></header>
+<header>
+  <h1>Headless WMS</h1><span>Test drive</span>
+  <nav aria-label="Documentation">
+    <button type="button" data-help="/help">Full Help</button>
+    <button type="button" data-help="/url">URL Help</button>
+  </nav>
+</header>
 <main>
   <aside aria-label="Render settings">
     <form id="settings" novalidate>
@@ -41,6 +50,10 @@
       <label>
         Map image (JPEG, PNG, or WebP)
         <input type="file" id="image" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" required>
+      </label>
+      <label>
+        <span>Title <small>title</small></span>
+        <input name="title" value="TTRPG Battle Map" required>
       </label>
       <fieldset>
         <legend>Map</legend>
@@ -131,10 +144,13 @@
           <input name="poverlap" value="0.125" type="number" min="0" max="0.5" step="0.05" required>
         </label>
       </fieldset>
+      <label>Overview page
+        <select name="overview"><option value="0">Off</option><option value="1">On</option></select>
+      </label>
       <div class="submit"><button>Render PDF</button></div>
     </form>
   </aside>
-  <section aria-label="PDF preview">
+  <section aria-label="Preview and documentation">
     <div class="bar"><p id="status" role="status">PDF preview</p><a id="download" download="map.pdf" hidden>Download PDF</a></div>
     <p id="empty" class="empty">Choose an image and select Render PDF.</p>
     <iframe id="preview" title="Rendered map PDF" hidden></iframe>
@@ -149,6 +165,23 @@
   const style = form.elements.gstyle;
   const angle = form.elements.gangle;
   let pdfUrl;
+  const renderer = document.querySelector("#renderer");
+  const empty = document.querySelector("#empty");
+
+  for (const helpButton of document.querySelectorAll("[data-help]")) {
+    helpButton.addEventListener("click", () => {
+      preview.src = new URL(helpButton.dataset.help, renderer.value).href;
+      preview.title = helpButton.textContent;
+      preview.hidden = false;
+      empty.hidden = true;
+      download.hidden = true;
+      status.textContent = helpButton.textContent;
+      if (pdfUrl) {
+        URL.revokeObjectURL(pdfUrl);
+        pdfUrl = undefined;
+      }
+    });
+  }
 
   function updateAngle() {
     angle.disabled = style.value === "square";
@@ -184,6 +217,7 @@
     const image = document.querySelector("#image").files[0];
     upload.append("image", image);
     const params = new URLSearchParams(formValues);
+    if (params.get("overview") === "0") params.delete("overview");
     for (const input of form.querySelectorAll('input[type="number"]:enabled')) {
       params.set(input.name, decimal(input.value));
     }
@@ -191,13 +225,8 @@
     const fileName = image.name.replace(/\.[^.]+$/, "") + ".pdf";
     button.disabled = true;
     status.textContent = "Rendering…";
-    if (pdfUrl) URL.revokeObjectURL(pdfUrl);
-    preview.hidden = true;
-    preview.removeAttribute("src");
-    download.hidden = true;
-    document.querySelector("#empty").hidden = true;
     try {
-      const response = await fetch(document.querySelector("#renderer").value + "?" + params, { method: "POST", body: upload });
+      const response = await fetch(renderer.value + "?" + params, { method: "POST", body: upload });
       if (!response.ok) {
         const error = await response.json().catch(() => ({}));
         throw new Error(error.error || "Render failed (HTTP " + response.status + ").");
@@ -205,9 +234,13 @@
       if (!response.headers.get("Content-Type")?.startsWith("application/pdf")) {
         throw new Error("The renderer returned an unexpected response.");
       }
-      pdfUrl = URL.createObjectURL(await response.blob());
+      const nextPdfUrl = URL.createObjectURL(await response.blob());
+      if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+      pdfUrl = nextPdfUrl;
       preview.src = pdfUrl;
+      preview.title = "Rendered map PDF";
       preview.hidden = false;
+      empty.hidden = true;
       download.href = pdfUrl;
       download.download = fileName;
       download.hidden = false;
