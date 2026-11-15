@@ -1,5 +1,7 @@
 # TODO for November 14, 2026
 
+- [x] Remove the single-option Image Placement and Grid Extent controls from the test page and display Overview as a global setting alongside the image and title.
+
 - [x] Record uploaded image bytes and generated PDF bytes in Cloudflare Workers Analytics Engine and document the daily totals query.
 
 - [x] Add a configurable overview title to the template and `test.html`. Default to `TTRPG Battle Map` and support the `title` URL parameter.
@@ -11,7 +13,7 @@
 - [ ] Implement named templates backed by Cloudflare R2 so a render can reuse saved settings by template name.
 - [ ] Add a **Save as template** action to `test.html` that saves the current settings to R2 under a name you enter.
 
-- [ ] Publish the test interface publicly. Consider hosting `test.html` on `trumpoot.com`, serving it from the Worker’s root URL, or doing both. Verify that visitors can select an image, render it through the live Worker, and preview and download the PDF. Check cross-origin access if the interface and renderer use different origins.
+- [x] Publish the test interface at [the Worker’s /test.html](https://wmsh-ts.trumpoot.workers.dev/test.html) and verify image upload, rendering, PDF preview, and download.
 
 - [x] Set and verify numeric control increments in `test.html`, including whole-number steps for page rows and columns and support for the precise `0.125`-inch overlap default.
 

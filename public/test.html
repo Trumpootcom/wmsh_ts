@@ -18,7 +18,7 @@
   legend { padding-right: 8px; font-weight: 700 }
   label { display: grid; gap: 4px; margin-bottom: 9px; font-size: 13px }
   fieldset label { grid-template-columns: minmax(0, 1fr) minmax(0, 42%); align-items: start; gap: 8px }
-  fieldset label span { display: grid; gap: 2px; overflow-wrap: anywhere }
+  label span { display: grid; gap: 2px; overflow-wrap: anywhere }
   small { color: #526960; font: 11px ui-monospace, monospace }
   input, select, button { width: 100%; min-width: 0; font: inherit; padding: 7px 9px; border: 1px solid #aebdb3; border-radius: 5px; background: white; color: inherit }
   input:focus-visible, select:focus-visible, button:focus-visible, a:focus-visible { outline: 2px solid #117951; outline-offset: 2px }
@@ -55,6 +55,10 @@
         <span>Title <small>title</small></span>
         <input name="title" value="TTRPG Battle Map" required>
       </label>
+      <label>
+        <span>Overview <small>overview</small></span>
+        <select name="overview"><option value="0">Off</option><option value="1" selected>On</option></select>
+      </label>
       <fieldset>
         <legend>Map</legend>
         <label>
@@ -64,10 +68,6 @@
         <label>
           <span>worldWidthFeet <small>wid</small></span>
           <input name="wid" value="160" type="number" step="any" required>
-        </label>
-        <label>
-          <span>imagePlacement <small>place</small></span>
-          <select name="place"><option selected>center</option></select>
         </label>
       </fieldset>
       <fieldset>
@@ -116,10 +116,6 @@
           <span>grid.opacity <small>gopacity</small></span>
           <input name="gopacity" value="0.6" type="number" min="0" max="1" step="0.1" required>
         </label>
-        <label>
-          <span>grid.extent <small>gextent</small></span>
-          <select name="gextent"><option selected>printableCanvas</option></select>
-        </label>
       </fieldset>
       <fieldset>
         <legend>Paper</legend>
@@ -146,10 +142,6 @@
         <label>
           <span>page.overlapInches <small>poverlap</small></span>
           <input name="poverlap" value="0.125" type="number" min="0" max="0.5" step="0.05" required>
-        </label>
-        <label>
-          <span>page.overview <small>overview</small></span>
-          <select name="overview"><option value="0">Off</option><option value="1" selected>On</option></select>
         </label>
       </fieldset>
       <div class="submit"><button>Render PDF</button></div>

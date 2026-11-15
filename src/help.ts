@@ -77,7 +77,7 @@ TEMPLATE FIELDS
   schemaVersion           Use 1.
   name                    Any non-empty descriptive string.
   title                   Optional overview heading. Defaults to TTRPG Battle Map.
-  overview                Optional boolean for the landscape guide. The bundled
+  overview                Optional top-level boolean for the guide. The bundled
                           template sets it to true. Custom templates that omit
                           it keep the map sheets only.
   worldWidthFeet          Requested world width in feet before fitting.

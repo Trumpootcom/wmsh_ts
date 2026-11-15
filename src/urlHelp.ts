@@ -5,7 +5,7 @@ const descriptions: Record<keyof typeof aliases, string> = {
   wid: "World width in feet",
   name: "Template name",
   title: "Overview title",
-  overview: "1 to include the overview, 0 to omit it",
+  overview: "Global toggle: 1 to include, 0 to omit",
   place: "center",
   gstyle: "rect or hex; legacy aliases: square and iso",
   giso: "true for projection, false for regular cells",

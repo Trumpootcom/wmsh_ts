@@ -15,6 +15,7 @@ Replace the JPG path as needed. Add `-F "template_file=@template.json"` to use y
 <tbody>
 <tr><td><code>wid</code></td><td><code>worldWidthFeet</code></td><td><code>160</code></td><td>World width in feet</td></tr>
 <tr><td><code>name</code></td><td><code>name</code></td><td><code>name</code></td><td>Template name</td></tr>
+<tr><td><code>overview</code></td><td><code>overview</code></td><td><code>true</code></td><td>Global overview toggle. Use <code>1</code> to include or <code>0</code> to omit.</td></tr>
 <tr><td><code>place</code></td><td><code>imagePlacement</code></td><td><code>center</code></td><td><code>center</code></td></tr>
 <tr><td><code>gstyle</code></td><td><code>grid.style</code></td><td><code>rect</code></td><td><code>rect</code> or <code>hex</code></td></tr>
 <tr><td><code>giso</code></td><td><code>grid.iso</code></td><td><code>false</code></td><td><code>true</code> for projection or <code>false</code> for regular cells</td></tr>
