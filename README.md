@@ -29,3 +29,20 @@ The bundled template prepends a landscape assembly guide titled **TTRPG Battle M
 Open the [hosted test page](https://wmsh-ts.trumpoot.workers.dev/test.html), or run `npm.cmd run dev` and visit `http://127.0.0.1:8787/test.html`. The served page uses its own Worker for rendering and help. Select a JPEG, PNG, or static WebP, adjust the settings, and click **Render PDF**.
 
 You can also open [public/test.html](public/test.html) directly from disk and choose **Local** or **Live**.
+
+## Render traffic
+
+Cloudflare Workers Analytics Engine records uploaded image bytes and generated PDF bytes in `wmsh_render_traffic`. An accepted image field counts even if rendering later fails. Generated PDF bytes measure the response body prepared by the Worker. The totals exclude multipart and HTTP overhead, help pages, and static assets.
+
+Run this through the [Analytics Engine SQL API](https://developers.cloudflare.com/analytics/analytics-engine/sql-api/) to see daily totals in decimal MB. Multiply by the sampling interval to account for sampled data.
+
+```sql
+SELECT
+  toStartOfInterval(timestamp, INTERVAL '1' DAY) AS day,
+  sum(double1 * _sample_interval) / 1000000 AS uploaded_image_mb,
+  sum(double2 * _sample_interval) / 1000000 AS generated_pdf_mb
+FROM wmsh_render_traffic
+WHERE timestamp >= NOW() - INTERVAL '7' DAY
+GROUP BY day
+ORDER BY day DESC
+```

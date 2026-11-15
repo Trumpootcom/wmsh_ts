@@ -15,22 +15,31 @@ function error(message: string, status: number, headers?: HeadersInit) {
   return Response.json({ error: message }, { status, headers });
 }
 
+function recordBytes(metrics: AnalyticsEngineDataset | undefined, imageBytes: number, pdfBytes: number) {
+  try {
+    metrics?.writeDataPoint({ doubles: [imageBytes, pdfBytes] });
+  } catch (failure) {
+    console.warn("Could not record render traffic metrics.", failure);
+  }
+}
+
 export default {
-  async fetch(request: Request): Promise<Response> {
+  async fetch(request: Request, env?: { RENDER_METRICS?: AnalyticsEngineDataset }): Promise<Response> {
+    const metrics = env?.RENDER_METRICS;
     // Standalone test.html sends Origin: null when opened from disk.
     if (new URL(request.url).pathname === "/render" && request.headers.get("Origin") === "null") {
       const response = request.method === "OPTIONS"
         ? new Response(null, { status: 204, headers: { "Access-Control-Allow-Methods": "POST" } })
-        : await handleRequest(request);
+        : await handleRequest(request, metrics);
       response.headers.set("Access-Control-Allow-Origin", "null");
       response.headers.append("Vary", "Origin");
       return response;
     }
-    return handleRequest(request);
+    return handleRequest(request, metrics);
   },
 };
 
-async function handleRequest(request: Request): Promise<Response> {
+async function handleRequest(request: Request, metrics?: AnalyticsEngineDataset): Promise<Response> {
   const { pathname, searchParams } = new URL(request.url);
   if (pathname === "/help" || pathname === "/url") {
     if (request.method !== "GET" && request.method !== "HEAD") {
@@ -61,6 +70,7 @@ async function handleRequest(request: Request): Promise<Response> {
   if (images.length !== 1 || typeof upload === "string" || !upload?.size) {
     return error("Upload exactly one JPEG, PNG, or WebP file in the image field.", 400);
   }
+  recordBytes(metrics, upload.size, 0);
 
   const templates = form.getAll("template_file");
   const [templateFile] = templates;
@@ -197,7 +207,9 @@ async function handleRequest(request: Request): Promise<Response> {
 
   const iso = new Date().toISOString();
   const timestamp = iso.slice(0, 19).replace("T", "_").replace(/[-:]/g, "");
-  return new Response((await pdf.save()).slice().buffer, {
+  const pdfBytes = (await pdf.save()).slice();
+  recordBytes(metrics, 0, pdfBytes.byteLength);
+  return new Response(pdfBytes.buffer, {
     headers: {
       "Content-Type": "application/pdf",
       "Content-Disposition": `attachment; filename="${timestamp}.pdf"`,

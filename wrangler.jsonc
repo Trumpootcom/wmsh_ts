@@ -3,6 +3,12 @@
   "name": "wmsh-ts",
   "main": "src/index.ts",
   "compatibility_date": "2026-11-13",
+  "analytics_engine_datasets": [
+    {
+      "binding": "RENDER_METRICS",
+      "dataset": "wmsh_render_traffic"
+    }
+  ],
   "assets": {
     "directory": "./public",
     "html_handling": "none"

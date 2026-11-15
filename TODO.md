@@ -1,5 +1,7 @@
 # TODO for November 14, 2026
 
+- [x] Record uploaded image bytes and generated PDF bytes in Cloudflare Workers Analytics Engine and document the daily totals query.
+
 - [x] Add a configurable overview title to the template and `test.html`. Default to `TTRPG Battle Map` and support the `title` URL parameter.
 
 - [x] Add regular and projected hex grids with shared geometry across sheet overlaps and a 1-inch round-base fit at 1 inch per 5 feet.
