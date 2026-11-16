@@ -81,7 +81,9 @@ titled overview page.
 
 Use curl on macOS or Linux. Replace map.png with your image path.
 Add -F "template_file=@template.json" to use a complete custom template.
-Overrides apply to either template for the current request.
+Use -F "template_alias=default" to select a saved template by alias.
+With neither field, the Worker loads Default from D1 or the bundled
+fallback. Overrides apply to the selected template for this request.
 
 ${table}
 

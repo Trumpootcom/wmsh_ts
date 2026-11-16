@@ -4,7 +4,7 @@ import { help } from "./help";
 import { urlHelp } from "./urlHelp";
 import { drawGrid } from "./grid";
 import { buildHexEdges } from "./hexGrid";
-import defaultTemplate from "./default.json";
+import { defaultAlias, loadSavedTemplate, TemplateLookupError } from "./savedTemplates";
 import { decode } from "jpeg-js";
 import { drawContrastGrid } from "./contrast";
 import { workingJpeg } from "./workingImage";
@@ -24,22 +24,21 @@ function recordBytes(metrics: AnalyticsEngineDataset | undefined, imageBytes: nu
 }
 
 export default {
-  async fetch(request: Request, env?: { RENDER_METRICS?: AnalyticsEngineDataset }): Promise<Response> {
-    const metrics = env?.RENDER_METRICS;
+  async fetch(request: Request, env?: { RENDER_METRICS?: AnalyticsEngineDataset; TEMPLATES?: D1Database }): Promise<Response> {
     // Standalone test.html sends Origin: null when opened from disk.
     if (new URL(request.url).pathname === "/render" && request.headers.get("Origin") === "null") {
       const response = request.method === "OPTIONS"
         ? new Response(null, { status: 204, headers: { "Access-Control-Allow-Methods": "POST" } })
-        : await handleRequest(request, metrics);
+        : await handleRequest(request, env?.RENDER_METRICS, env?.TEMPLATES);
       response.headers.set("Access-Control-Allow-Origin", "null");
       response.headers.append("Vary", "Origin");
       return response;
     }
-    return handleRequest(request, metrics);
+    return handleRequest(request, env?.RENDER_METRICS, env?.TEMPLATES);
   },
 };
 
-async function handleRequest(request: Request, metrics?: AnalyticsEngineDataset): Promise<Response> {
+async function handleRequest(request: Request, metrics?: AnalyticsEngineDataset, database?: D1Database): Promise<Response> {
   const { pathname, searchParams } = new URL(request.url);
   if (pathname === "/help" || pathname === "/url") {
     if (request.method !== "GET" && request.method !== "HEAD") {
@@ -48,6 +47,18 @@ async function handleRequest(request: Request, metrics?: AnalyticsEngineDataset)
     return new Response(request.method === "HEAD" ? null : pathname === "/help" ? help : urlHelp, {
       headers: { "Content-Type": "text/plain; charset=utf-8" },
     });
+  }
+  const savedTemplatePath = "/templates/";
+  if (pathname.startsWith(savedTemplatePath)) {
+    if (request.method !== "GET") {
+      return error("Use GET to read a saved template.", 405, { Allow: "GET" });
+    }
+    try {
+      return Response.json(await loadSavedTemplate(database, pathname.slice(savedTemplatePath.length)));
+    } catch (failure) {
+      if (failure instanceof TemplateLookupError) return error(failure.message, failure.status);
+      throw failure;
+    }
   }
   if (pathname !== "/render") {
     return error("Route not found. See GET /help for usage.", 404);
@@ -74,10 +85,15 @@ async function handleRequest(request: Request, metrics?: AnalyticsEngineDataset)
 
   const templates = form.getAll("template_file");
   const [templateFile] = templates;
-  if (form.has("template_alias")) {
-    return error("Template aliases are unavailable. Upload a template_file or use the built-in default.", 400);
+  const aliases = form.getAll("template_alias");
+  const [alias] = aliases;
+  if (templates.length > 0 && aliases.length > 0) {
+    return error("Specify either template_file or template_alias.", 400);
   }
-  let json: unknown = defaultTemplate;
+  if (aliases.length > 1 || (alias !== undefined && typeof alias !== "string")) {
+    return error("Specify template_alias once as text.", 400);
+  }
+  let json: unknown;
   if (templates.length > 0) {
     if (templates.length !== 1 || typeof templateFile === "string" || !templateFile?.size) {
       return error("Upload exactly one JSON file in the template_file field.", 400);
@@ -86,6 +102,13 @@ async function handleRequest(request: Request, metrics?: AnalyticsEngineDataset)
       json = JSON.parse(await templateFile.text());
     } catch {
       return error("template_file must contain valid JSON.", 400);
+    }
+  } else {
+    try {
+      json = await loadSavedTemplate(database, alias ?? defaultAlias);
+    } catch (failure) {
+      if (failure instanceof TemplateLookupError) return error(failure.message, failure.status);
+      throw failure;
     }
   }
   let template;

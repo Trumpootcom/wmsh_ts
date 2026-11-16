@@ -3,6 +3,13 @@
   "name": "wmsh-ts",
   "main": "src/index.ts",
   "compatibility_date": "2026-11-13",
+  "d1_databases": [
+    {
+      "binding": "TEMPLATES",
+      "database_name": "wmsh-ts",
+      "database_id": "ffbdbcf0-7e21-4d04-932f-51c4f3d5404a"
+    }
+  ],
   "analytics_engine_datasets": [
     {
       "binding": "RENDER_METRICS",

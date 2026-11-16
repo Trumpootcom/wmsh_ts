@@ -18,11 +18,23 @@ Invoke-Item smoke.pdf
 
 Include every field in the example. Try changing `grid.inchesPerFiveFeet` to `0.5` to print the map 4 inches wide with half-inch squares. For a two-sheet print, start with the example and set `page.columns` to `2` and `worldWidthFeet` to `65`. The PDF contains exactly `page.rows × page.columns` sheets, up to 100, in row order from the top left. The map is centered across the assembled printable area, and adjacent sheets share the specified overlap. If the map exceeds that area, the Worker shrinks the image proportionally to fit while preserving the grid spacing. The fitted image represents fewer world feet.
 
-The Worker supports Letter or Ledger in either orientation, plus square and isometric grids centered on the image. Run `curl.exe -fsS http://127.0.0.1:8787/help` for the supported styles, aliases, and template fields. See [vision.md](vision.md) for planned R2 alias support.
+The Worker supports Letter or Ledger in either orientation, plus rectangular and hex grids with optional projection. Run `curl.exe -fsS http://127.0.0.1:8787/help` for the supported styles, aliases, and template fields.
 
 Run `npm.cmd run typecheck` to generate the Worker types and check the TypeScript.
 
-Omit `template_file` to use the bundled [160-foot-wide, 2×2 landscape Ledger template](src/default.json). URL overrides apply to both bundled and uploaded templates.
+Omit both template fields to use **Default** from D1, with the bundled [160-foot-wide, 2×2 landscape Ledger template](src/default.json) as fallback when the row is missing or no database is bound. Upload `template_file` or send `-F "template_alias=default"` to choose a template explicitly. URL overrides apply after selection.
+
+## Saved templates
+
+The Worker reads JSON from the `templates` table in the `wmsh-ts` D1 database. Read a template with `GET /templates/<alias>`. A missing alias returns 404, except `default`, which falls back to the bundled JSON.
+
+Bind the database as `TEMPLATES` using its Database ID in `wrangler.jsonc`. Before deploying the binding, apply the migration to create the table and seed Default:
+
+```powershell
+npx.cmd wrangler d1 migrations apply wmsh-ts --remote
+```
+
+For local Wrangler storage, run the same command with `--local`. The test page continues to send its form values as overrides until the template gallery is added.
 
 The bundled template prepends a landscape assembly guide titled **TTRPG Battle Map**. Use `?overview=0` or turn off **Overview page** in `test.html` to omit it. Custom templates can set `"overview": true` or use `?overview=1` to include it.
 

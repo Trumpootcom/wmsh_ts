@@ -177,8 +177,12 @@ HTTP REQUEST AND RESPONSE
   GET /help     This plain-text guide.
   GET /url      Plain-text URL parameter reference with defaults.
   POST /render  Send multipart/form-data with one JPEG, PNG, or static WebP file in "image"
-                and optionally one JSON file in "template_file".
-                Omitting that field uses the built-in default.
+                and optionally one JSON file in "template_file" or one
+                saved name in "template_alias". Omit both to use Default
+                from D1, with the bundled JSON as fallback.
+  GET /templates/{alias}
+                Read a saved template as JSON. Use /templates/default for
+                the current Default.
 
   Use ?overview=1 to include or ?overview=0 to omit the landscape
   assembly guide on the selected paper size. It shows cut lines,
@@ -194,7 +198,7 @@ IMAGE NORMALIZATION
 TEMPLATE OVERRIDES
 
   Add query parameters to POST /render to override template values for
-  that request. Overrides apply to the default or the uploaded template.
+  that request. Overrides apply to the default, saved, or uploaded template.
   A custom upload must include every required field, including schemaVersion.
   Use each alias once. Unknown or repeated aliases return 422. Numeric
   values use decimal notation. Use giso=true&gangle=60 to project the grid

@@ -1,0 +1,9 @@
+CREATE TABLE IF NOT EXISTS templates (
+    alias TEXT PRIMARY KEY NOT NULL,
+    template_json TEXT NOT NULL CHECK (json_valid(template_json)),
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT INTO templates (alias, template_json)
+VALUES ('default', '{"schemaVersion":1,"template":"Default","title":"TTRPG Battle Map","overview":true,"worldWidthFeet":160,"imagePlacement":"center","grid":{"style":"rect","iso":false,"isoAngleDegrees":null,"rotationDegrees":0,"offsetX":0,"offsetY":0,"inchesPerFiveFeet":1,"lineStyle":"solid","color":"black","lineWidthPoints":2.5,"opacity":0.6,"extent":"printableCanvas"},"page":{"size":"ledger","orientation":"landscape","rows":2,"columns":2,"marginInches":0.25,"overlapInches":0.125}}')
+ON CONFLICT(alias) DO NOTHING;

@@ -27,23 +27,23 @@ Every rendering request requires two inputs.
 
 ### 2.2 Template
 
-The caller can omit the template to use the built-in 160-foot-wide, 2 × 2 landscape Ledger template, or supply a custom template.
+The caller can omit the template to use Default, choose a saved template by alias, or upload a custom template.
 
 **Option A — JSON Template File**
 
 Upload a `template_file.json` containing the complete map and printing configuration.
 
-**Option B — Template Alias (planned)**
+**Option B — Template Alias**
 
-Supply a `template_alias` identifying a previously published template stored in Cloudflare R2.
+Supply a `template_alias` identifying a previously published template stored in Cloudflare D1.
 
-The Worker retrieves the corresponding JSON template from R2.
+The Worker looks up the alias in the D1 templates table.
 
 Both options use the same template schema and rendering engine.
 
 ## 3. Template Configuration
 
-Every field shown in the example is required. A missing field is a validation error. The uploaded JSON and R2 templates follow the same rule. For square grids, include `grid.isoAngleDegrees` with the value `null`.
+Every field shown in the example is required. A missing field is a validation error. The uploaded JSON and D1 templates follow the same rule. For square grids, include `grid.isoAngleDegrees` with the value `null`.
 
 | Parameter | Description |
 |---|---|
@@ -116,7 +116,7 @@ The interactive `vtt_slicer` exporter used the image dimensions to determine the
 The Worker performs the following operations:
 
 1. Validate the source image and supplied template.
-2. Resolve the template from the uploaded JSON or R2 alias.
+2. Resolve the template from the uploaded JSON or D1 alias.
 3. Calculate the image's physical dimensions from the world scale and source aspect ratio.
 4. Calculate the assembled printable canvas from the page size, orientation, margins, overlap, and page array.
 5. Shrink the image proportionally when needed, then derive its effective world dimensions from the unchanged grid scale.
@@ -176,15 +176,15 @@ Accepts a multipart request containing:
 - `template_file` — JSON file, optional
 - `template_alias` — string, optional
 
-With no template source, the Worker uses its bundled default. When alias support is added, requests may supply at most one template source.
+With no template source, the Worker uses Default from D1, falling back to the bundled template when the saved Default is absent. Requests may supply at most one template source.
 
 **Success:** HTTP 200 with PDF file response.
 
 **Failure:** Appropriate HTTP error status with a JSON error description.
 
-### GET /templates
+### GET /templates (planned)
 
-Returns the available template aliases and human-readable names from the R2 template library.
+Returns the available template aliases and human-readable names from the D1 template library.
 
 ### GET /templates/{alias}
 
@@ -192,18 +192,7 @@ Returns the JSON configuration for a specified template.
 
 ## 7. Template Library
 
-Templates are maintained in a GitHub repository and automatically synchronized to Cloudflare R2.
-
-**Publishing workflow:**
-
-1. A template JSON file is added, updated, or deleted in GitHub.
-2. The change is committed and pushed to the designated publishing branch.
-3. GitHub Actions synchronizes the template library to R2.
-4. The Worker reads the current templates directly from R2.
-
-Updating templates does not require redeploying the Worker.
-
-GitHub is the authoritative source; R2 is the runtime template library.
+The initial library is seeded with a copy of the bundled Default template. The Worker reads the current templates directly from D1. Updating an D1 template does not require redeploying the Worker. The browser gallery and password-protected template writes are planned separately.
 
 Template aliases should be stable identifiers independent of human-readable template names.
 
@@ -215,7 +204,7 @@ The implementation should separate the following concerns:
 
 **Template Loader**
 - Validate uploaded JSON templates.
-- Resolve R2 template aliases.
+- Resolve D1 template aliases.
 - Return normalized template configurations.
 
 **Map Geometry Engine**
@@ -271,13 +260,13 @@ Accept a JPG and a local JSON template. Generate a correctly scaled multipage PD
 
 Deploy the engine as an HTTP service supporting direct JSON template uploads.
 
-**Milestone 3 — R2 Template Library**
+**Milestone 3 — D1 Template Library**
 
-Implement template aliases, template listing, and retrieval from R2.
+Implement template aliases, template listing, and retrieval from D1.
 
 **Milestone 4 — GitHub Automation**
 
-Implement GitHub Actions to synchronize the template directory to R2 without Worker redeployment.
+Implement GitHub Actions to synchronize the template directory to D1 without Worker redeployment.
 
 **Milestone 5 — Validation and Compatibility**
 
@@ -288,7 +277,7 @@ Verify physical print scale, grid alignment, overlap, exact page counts, square/
 The initial project is successful when a client can submit:
 
 - One prepared JPEG, PNG, or static WebP image
-- One JSON template file or R2 template alias
+- One JSON template file or D1 template alias
 
 And receive:
 

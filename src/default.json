@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "template": "160x100ft-Z100-2x2-LEDGER-LS",
+  "template": "Default",
   "title": "TTRPG Battle Map",
   "overview": true,
   "worldWidthFeet": 160,
