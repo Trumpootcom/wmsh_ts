@@ -13,7 +13,7 @@
 - [ ] Add a status strip directly below the `test.html` header that shows the full `curl.exe` command for the selected image, renderer, and current settings. Update it as the inputs change and add a **Copy** button so the command can be pasted into ChatGPT to reproduce the render. The strip only previews and copies the command.
 - [x] Implement read-only D1 template loading by alias and a bundled fallback for Default.
 - [ ] Bind the wmsh-ts D1 database, apply the migration to seed Default, and deploy the Worker.
-- [ ] Add the template gallery with overview-style thumbnails and load-on-click controls.
+- [x] Add the read-only template gallery with overview-style thumbnails and load-on-click controls.
 - [ ] Add a **Save as template** action to `test.html` that saves the current settings to D1 under a name you enter.
 
 - [x] Publish the test interface at [the Worker’s /test.html](https://wmsh-ts.trumpoot.workers.dev/test.html) and verify image upload, rendering, PDF preview, and download.

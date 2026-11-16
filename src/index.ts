@@ -4,7 +4,8 @@ import { help } from "./help";
 import { urlHelp } from "./urlHelp";
 import { drawGrid } from "./grid";
 import { buildHexEdges } from "./hexGrid";
-import { defaultAlias, loadSavedTemplate, TemplateLookupError } from "./savedTemplates";
+import { defaultAlias, listSavedTemplates, loadSavedTemplate, TemplateLookupError } from "./savedTemplates";
+import { templatePreview } from "./templatePreview";
 import { decode } from "jpeg-js";
 import { drawContrastGrid } from "./contrast";
 import { workingJpeg } from "./workingImage";
@@ -26,9 +27,11 @@ function recordBytes(metrics: AnalyticsEngineDataset | undefined, imageBytes: nu
 export default {
   async fetch(request: Request, env?: { RENDER_METRICS?: AnalyticsEngineDataset; TEMPLATES?: D1Database }): Promise<Response> {
     // Standalone test.html sends Origin: null when opened from disk.
-    if (new URL(request.url).pathname === "/render" && request.headers.get("Origin") === "null") {
+    const { pathname } = new URL(request.url);
+    const templateRead = pathname === "/templates" || pathname.startsWith("/templates/");
+    if ((pathname === "/render" || templateRead) && request.headers.get("Origin") === "null") {
       const response = request.method === "OPTIONS"
-        ? new Response(null, { status: 204, headers: { "Access-Control-Allow-Methods": "POST" } })
+        ? new Response(null, { status: 204, headers: { "Access-Control-Allow-Methods": templateRead ? "GET" : "POST" } })
         : await handleRequest(request, env?.RENDER_METRICS, env?.TEMPLATES);
       response.headers.set("Access-Control-Allow-Origin", "null");
       response.headers.append("Vary", "Origin");
@@ -49,12 +52,28 @@ async function handleRequest(request: Request, metrics?: AnalyticsEngineDataset,
     });
   }
   const savedTemplatePath = "/templates/";
-  if (pathname.startsWith(savedTemplatePath)) {
+  if (pathname === "/templates" || pathname.startsWith(savedTemplatePath)) {
     if (request.method !== "GET") {
       return error("Use GET to read a saved template.", 405, { Allow: "GET" });
     }
     try {
-      return Response.json(await loadSavedTemplate(database, pathname.slice(savedTemplatePath.length)));
+      const headers = { "Cache-Control": "no-store" };
+      if (pathname === "/templates") {
+        return Response.json(await listSavedTemplates(database), { headers });
+      }
+      const path = pathname.slice(savedTemplatePath.length);
+      const previewSuffix = "/preview.svg";
+      const preview = path.endsWith(previewSuffix);
+      const saved = await loadSavedTemplate(database, preview ? path.slice(0, -previewSuffix.length) : path);
+      if (!preview) return Response.json(saved, { headers });
+      try {
+        return new Response(templatePreview(saved), {
+          headers: { ...headers, "Content-Type": "image/svg+xml; charset=utf-8" },
+        });
+      } catch (failure) {
+        if (failure instanceof Error) return error(failure.message, 422);
+        throw failure;
+      }
     } catch (failure) {
       if (failure instanceof TemplateLookupError) return error(failure.message, failure.status);
       throw failure;

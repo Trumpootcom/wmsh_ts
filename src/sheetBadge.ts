@@ -1,15 +1,19 @@
 import { rgb, type PDFFont, type PDFPage } from "pdf-lib";
 
+export function sheetLabel(row: number, column: number): string {
+  let columnLabel = "";
+  for (let index = column + 1; index > 0; index = Math.floor((index - 1) / 26)) {
+    columnLabel = String.fromCharCode(65 + (index - 1) % 26) + columnLabel;
+  }
+  return `${columnLabel}${row + 1}`;
+}
+
 export function drawSheetBadge(
   page: PDFPage, font: PDFFont, row: number, column: number,
   bounds: { left: number; bottom: number; width: number; height: number },
   scale = 1,
 ) {
-  let columnLabel = "";
-  for (let index = column + 1; index > 0; index = Math.floor((index - 1) / 26)) {
-    columnLabel = String.fromCharCode(65 + (index - 1) % 26) + columnLabel;
-  }
-  const label = `${columnLabel}${row + 1}`;
+  const label = sheetLabel(row, column);
   const size = 18 * scale;
   const height = 24 * scale;
   const inset = scale;

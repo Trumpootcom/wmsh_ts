@@ -180,9 +180,12 @@ HTTP REQUEST AND RESPONSE
                 and optionally one JSON file in "template_file" or one
                 saved name in "template_alias". Omit both to use Default
                 from D1, with the bundled JSON as fallback.
+  GET /templates  List saved templates by alias and display name.
   GET /templates/{alias}
                 Read a saved template as JSON. Use /templates/default for
                 the current Default.
+  GET /templates/{alias}/preview.svg
+                View a blank-map preview with grid, sheet cuts, and badges.
 
   Use ?overview=1 to include or ?overview=0 to omit the landscape
   assembly guide on the selected paper size. It shows cut lines,

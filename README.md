@@ -34,7 +34,9 @@ Bind the database as `TEMPLATES` using its Database ID in `wrangler.jsonc`. Befo
 npx.cmd wrangler d1 migrations apply wmsh-ts --remote
 ```
 
-For local Wrangler storage, run the same command with `--local`. The test page continues to send its form values as overrides until the template gallery is added.
+For local Wrangler storage, run the same command with `--local`.
+
+On the test page, click **Templates** to open the read-only gallery. Click a card to load its settings into the form, then render with those settings. The gallery uses `GET /templates` for names and aliases and `GET /templates/<alias>/preview.svg` for blank-map thumbnails.
 
 The bundled template prepends a landscape assembly guide titled **TTRPG Battle Map**. Use `?overview=0` or turn off **Overview page** in `test.html` to omit it. Custom templates can set `"overview": true` or use `?overview=1` to include it.
 

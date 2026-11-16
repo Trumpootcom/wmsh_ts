@@ -182,7 +182,7 @@ With no template source, the Worker uses Default from D1, falling back to the bu
 
 **Failure:** Appropriate HTTP error status with a JSON error description.
 
-### GET /templates (planned)
+### GET /templates
 
 Returns the available template aliases and human-readable names from the D1 template library.
 
@@ -190,9 +190,13 @@ Returns the available template aliases and human-readable names from the D1 temp
 
 Returns the JSON configuration for a specified template.
 
+### GET /templates/{alias}/preview.svg
+
+Returns a blank-map thumbnail with the configured grid, sheet cuts, and sheet badges.
+
 ## 7. Template Library
 
-The initial library is seeded with a copy of the bundled Default template. The Worker reads the current templates directly from D1. Updating an D1 template does not require redeploying the Worker. The browser gallery and password-protected template writes are planned separately.
+The initial library is seeded with a copy of the bundled Default template. The Worker reads the current templates directly from D1. Updating a D1 template does not require redeploying the Worker. The browser gallery loads saved settings into the form. Password-protected template writes are planned separately.
 
 Template aliases should be stable identifiers independent of human-readable template names.
 

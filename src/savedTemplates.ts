@@ -1,11 +1,41 @@
 import defaults from "./default.json";
 import { readTemplate } from "./template";
+import { sheetLayout } from "./sheetLayout";
 
 export const defaultAlias = "default";
 
 export class TemplateLookupError extends Error {
   constructor(message: string, readonly status: number) {
     super(message);
+  }
+}
+
+function describeTemplate(alias: string, value: unknown) {
+  const settings = readTemplate(value);
+  const { canvasWidth, canvasHeight } = sheetLayout(settings);
+  const dimensions = (pointsPerUnit: number) =>
+    `${(canvasWidth / pointsPerUnit).toFixed(1)} x ${(canvasHeight / pointsPerUnit).toFixed(1)}`;
+  const name = settings.template;
+  return { alias, name, dimensions: `${dimensions(settings.spacing / 5)} feet - ${dimensions(72)} in` };
+}
+
+export async function listSavedTemplates(database?: D1Database) {
+  const fallback = describeTemplate(defaultAlias, defaults);
+  if (!database) return [fallback];
+  try {
+    const { results } = await database.prepare(
+      "SELECT alias, template_json FROM templates ORDER BY alias <> 'default', alias",
+    ).all<{ alias: string; template_json: string }>();
+    const templates = results.map(({ alias, template_json }) => {
+      try {
+        return describeTemplate(alias, JSON.parse(template_json));
+      } catch {
+        return { alias, name: alias };
+      }
+    });
+    return templates.some(({ alias }) => alias === defaultAlias) ? templates : [fallback, ...templates];
+  } catch {
+    throw new TemplateLookupError("The saved template library is temporarily unavailable.", 503);
   }
 }
 
