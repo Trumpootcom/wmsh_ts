@@ -43,7 +43,7 @@ EXAMPLE TEMPLATE
 
 {
   "schemaVersion": 1,
-  "name": "2 x 2 landscape Letter map",
+  "template": "2 x 2 landscape Letter map",
   "title": "TTRPG Battle Map",
   "overview": false,
   "worldWidthFeet": 65,
@@ -75,7 +75,8 @@ EXAMPLE TEMPLATE
 TEMPLATE FIELDS
 
   schemaVersion           Use 1.
-  name                    Any non-empty descriptive string.
+  template                Any non-empty descriptive template name. Older JSON
+                          files and URLs can still use name.
   title                   Optional overview heading. Defaults to TTRPG Battle Map.
   overview                Optional top-level boolean for the guide. The bundled
                           template sets it to true. Custom templates that omit

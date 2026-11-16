@@ -1,6 +1,6 @@
 export const aliases = {
   wid: ["worldWidthFeet", "decimal"],
-  name: ["name", "text"],
+  template: ["template", "text"],
   title: ["title", "text"],
   overview: ["overview", "boolean"],
   place: ["imagePlacement", "text"],
@@ -36,7 +36,8 @@ export function applyOverrides(
 ) {
   const merged = { template: { ...template }, grid: { ...grid }, page: { ...page } };
   const seen = new Set<string>();
-  params.forEach((raw, alias) => {
+  params.forEach((raw, key) => {
+    const alias = key === "name" ? "template" : key;
     if (!Object.hasOwn(aliases, alias)) throw new Error(`Unknown template override: ${alias}.`);
     if (seen.has(alias)) throw new Error(`Specify ${alias} only once.`);
     seen.add(alias);

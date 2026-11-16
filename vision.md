@@ -72,7 +72,7 @@ Every field shown in the example is required. A missing field is a validation er
 ```json
 {
   "schemaVersion": 1,
-  "name": "80 Foot Square Map",
+  "template": "80 Foot Square Map",
   "worldWidthFeet": 80,
   "imagePlacement": "center",
   "grid": {

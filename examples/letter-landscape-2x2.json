@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "name": "2 × 2 landscape Letter",
+  "template": "2 × 2 landscape Letter",
   "worldWidthFeet": 65,
   "imagePlacement": "center",
   "grid": {

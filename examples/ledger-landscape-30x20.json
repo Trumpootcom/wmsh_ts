@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "name": "30 x 20 inch map on four Ledger sheets",
+  "template": "30 x 20 inch map on four Ledger sheets",
   "worldWidthFeet": 150,
   "imagePlacement": "center",
   "grid": {

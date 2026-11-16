@@ -10,6 +10,7 @@
 - [ ] Decorate the overview legend and SCALE panels with small parchment squares behind each corner, protruding about 3 pt on each adjoining edge. Add a muted brown rule under the legend heading and a faint divider between its columns.
 
 - [ ] Add a **Copy settings** button to `test.html` that puts the current render settings on the clipboard in a format you can paste into ChatGPT.
+- [ ] Add a status strip directly below the `test.html` header that shows the full `curl.exe` command for the selected image, renderer, and current settings. Update it as the inputs change and add a **Copy** button so the command can be pasted into ChatGPT to reproduce the render. The strip only previews and copies the command.
 - [ ] Implement named templates backed by Cloudflare R2 so a render can reuse saved settings by template name.
 - [ ] Add a **Save as template** action to `test.html` that saves the current settings to R2 under a name you enter.
 

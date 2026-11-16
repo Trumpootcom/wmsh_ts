@@ -3,7 +3,7 @@ import { aliases } from "./templateOverrides";
 
 const descriptions: Record<keyof typeof aliases, string> = {
   wid: "World width in feet",
-  name: "Template name",
+  template: "Template name (legacy alias: name)",
   title: "Overview title",
   overview: "Global toggle: 1 to include, 0 to omit",
   place: "center",
@@ -60,7 +60,7 @@ for (const [alias, [field]] of Object.entries(aliases)) {
     (parent, key) => (parent as Record<string, unknown>)[key], defaults,
   );
   const group = field.startsWith("grid.") ? "Grid" : field.startsWith("page.") ? "Page" : "Global";
-  rows[group].push(row(alias, field, alias === "name" ? "name" : String(value), descriptions[alias as keyof typeof aliases]));
+  rows[group].push(row(alias, field, alias === "template" ? "template" : String(value), descriptions[alias as keyof typeof aliases]));
 }
 const divider = border("├", "┼", "┤");
 const table = [

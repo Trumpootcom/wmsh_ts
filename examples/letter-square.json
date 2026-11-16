@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "name": "Letter square-grid smoke test",
+  "template": "Letter square-grid smoke test",
   "worldWidthFeet": 40,
   "imagePlacement": "center",
   "grid": {
