@@ -4,7 +4,7 @@ import { help } from "./help";
 import { urlHelp } from "./urlHelp";
 import { drawGrid } from "./grid";
 import { buildHexEdges } from "./hexGrid";
-import { defaultAlias, listSavedTemplates, loadSavedTemplate, TemplateLookupError } from "./savedTemplates";
+import { defaultAlias, editSavedTemplates, listSavedTemplates, loadSavedTemplate, TemplateLookupError } from "./savedTemplates";
 import { templatePreview } from "./templatePreview";
 import { decode } from "jpeg-js";
 import { drawContrastGrid } from "./contrast";
@@ -25,23 +25,26 @@ function recordBytes(metrics: AnalyticsEngineDataset | undefined, imageBytes: nu
 }
 
 export default {
-  async fetch(request: Request, env?: { RENDER_METRICS?: AnalyticsEngineDataset; TEMPLATES?: D1Database }): Promise<Response> {
+  async fetch(request: Request, env?: { RENDER_METRICS?: AnalyticsEngineDataset; TEMPLATES?: D1Database; TEMPLATE_PASSWORD?: string }): Promise<Response> {
     // Standalone test.html sends Origin: null when opened from disk.
     const { pathname } = new URL(request.url);
     const templateRead = pathname === "/templates" || pathname.startsWith("/templates/");
     if ((pathname === "/render" || templateRead) && request.headers.get("Origin") === "null") {
       const response = request.method === "OPTIONS"
-        ? new Response(null, { status: 204, headers: { "Access-Control-Allow-Methods": templateRead ? "GET" : "POST" } })
-        : await handleRequest(request, env?.RENDER_METRICS, env?.TEMPLATES);
+        ? new Response(null, { status: 204, headers: {
+          "Access-Control-Allow-Methods": pathname === "/templates" ? "GET, POST" : templateRead ? "GET" : "POST",
+          "Access-Control-Allow-Headers": "Content-Type",
+        } })
+        : await handleRequest(request, env?.RENDER_METRICS, env?.TEMPLATES, env?.TEMPLATE_PASSWORD);
       response.headers.set("Access-Control-Allow-Origin", "null");
       response.headers.append("Vary", "Origin");
       return response;
     }
-    return handleRequest(request, env?.RENDER_METRICS, env?.TEMPLATES);
+    return handleRequest(request, env?.RENDER_METRICS, env?.TEMPLATES, env?.TEMPLATE_PASSWORD);
   },
 };
 
-async function handleRequest(request: Request, metrics?: AnalyticsEngineDataset, database?: D1Database): Promise<Response> {
+async function handleRequest(request: Request, metrics?: AnalyticsEngineDataset, database?: D1Database, password?: string): Promise<Response> {
   const { pathname, searchParams } = new URL(request.url);
   if (pathname === "/help" || pathname === "/url") {
     if (request.method !== "GET" && request.method !== "HEAD") {
@@ -52,9 +55,19 @@ async function handleRequest(request: Request, metrics?: AnalyticsEngineDataset,
     });
   }
   const savedTemplatePath = "/templates/";
+  if (pathname === "/templates" && request.method === "POST") {
+    try {
+      return Response.json(await editSavedTemplates(request, database, password), {
+        headers: { "Cache-Control": "no-store" },
+      });
+    } catch (failure) {
+      if (failure instanceof TemplateLookupError) return error(failure.message, failure.status);
+      return error("The template change could not be saved.", 503);
+    }
+  }
   if (pathname === "/templates" || pathname.startsWith(savedTemplatePath)) {
     if (request.method !== "GET") {
-      return error("Use GET to read a saved template.", 405, { Allow: "GET" });
+      return error("Use GET to read saved templates.", 405, { Allow: pathname === "/templates" ? "GET, POST" : "GET" });
     }
     try {
       const headers = { "Cache-Control": "no-store" };
@@ -106,8 +119,12 @@ async function handleRequest(request: Request, metrics?: AnalyticsEngineDataset,
   const [templateFile] = templates;
   const aliases = form.getAll("template_alias");
   const [alias] = aliases;
-  if (templates.length > 0 && aliases.length > 0) {
-    return error("Specify either template_file or template_alias.", 400);
+  const ids = searchParams.getAll("template_id");
+  const [templateId] = ids;
+  searchParams.delete("template_id");
+  if (ids.length > 1) return error("Specify template_id only once.", 400);
+  if (Number(templates.length > 0) + Number(aliases.length > 0) + Number(ids.length > 0) > 1) {
+    return error("Choose one template source: template_file, template_alias, or template_id.", 400);
   }
   if (aliases.length > 1 || (alias !== undefined && typeof alias !== "string")) {
     return error("Specify template_alias once as text.", 400);
@@ -124,7 +141,7 @@ async function handleRequest(request: Request, metrics?: AnalyticsEngineDataset,
     }
   } else {
     try {
-      json = await loadSavedTemplate(database, alias ?? defaultAlias);
+      json = await loadSavedTemplate(database, templateId ?? alias ?? defaultAlias, templateId !== undefined);
     } catch (failure) {
       if (failure instanceof TemplateLookupError) return error(failure.message, failure.status);
       throw failure;

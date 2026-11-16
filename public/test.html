@@ -47,12 +47,30 @@
   .bar p { margin: 0; overflow-wrap: anywhere } a { color: hsl(32 95% 29%); white-space: nowrap }
   iframe { width: 100%; flex: 1; min-height: 0; border: 0 }
   .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(0, min(100%, 400px))); align-content: start; gap: 14px; padding: 18px; overflow: auto }
-  .gallery button { display: grid; gap: 8px; align-content: start; color: var(--ink); background: #C9B17A; text-align: center; overflow-wrap: anywhere }
+  .gallery-card { display: grid; gap: 8px; align-content: start; padding: 9px; background: #C9B17A; border: 1px solid var(--control-border); border-radius: 5px; text-align: center; overflow-wrap: anywhere }
   .gallery-caption { display: grid; justify-items: center; gap: 2px }
   .gallery-dimensions { font-size: 80%; font-weight: 400 }
   .gallery button:hover { border-color: var(--accent) }
-  .gallery button[aria-pressed="true"] { border-color: var(--gold-border); color: var(--ink); background: hsl(42 55% 58%) url("./trumpoot_titlebar_b.png") center / 100% 100% }
   .gallery img { width: 100%; aspect-ratio: 4 / 3; object-fit: contain; background: #E8E1D1; border: 1px solid var(--border) }
+  .card-actions { --action-size: 40px; display: flex; align-items: center; gap: 6px }
+  .card-actions button { display: grid; place-items: center; width: var(--action-size); height: var(--action-size); padding: 0 }
+  .card-actions .card-delete { margin-left: auto }
+  .template-id-chip { display: inline-grid; place-items: center; height: var(--action-size); padding: 0 10px; border-radius: 999px; background: #E8E1D1; border: 1px solid var(--border); font: 600 32px ui-monospace, monospace }
+  .card-actions svg { width: 75%; height: 75%; fill: currentColor }
+  .card-actions .chatgpt-icon { width: 65%; height: 65%; border: 0; background: transparent }
+  #template-prompt { width: min(720px, calc(100% - 24px)); padding: 18px }
+  .prompt-heading { display: flex; justify-content: space-between; align-items: start; gap: 12px }
+  .prompt-heading h2 { margin: 0 0 12px; overflow-wrap: anywhere }
+  .prompt-heading button { width: auto }
+  #prompt-text { width: 100%; min-height: 230px; padding: 10px; resize: vertical; font: 13px/1.5 ui-monospace, monospace }
+  #prompt-status:empty { display: none }
+  .template-actions, .dialog-actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 18px }
+  .template-actions button, .dialog-actions button { width: auto }
+  dialog { width: min(420px, calc(100% - 24px)); color: var(--ink); background: var(--panel); border: 1px solid var(--control-border); border-radius: 6px }
+  dialog::backdrop { background: #0006 }
+  .template-edit-content { padding: 8px }
+  .dialog-actions { justify-content: end; padding: 0 }
+  .dialog-actions [value="cancel"] { order: -1 }
   [hidden] { display: none !important }
   .empty { margin: auto; padding: 20px; text-align: center; color: var(--muted) }
   @media (max-width: 650px) {
@@ -183,9 +201,35 @@
     <div class="bar"><p id="status" role="status">PDF preview</p><a id="download" download="map.pdf" hidden>Download PDF</a></div>
     <p id="empty" class="empty">Choose an image and select Render PDF.</p>
     <iframe id="preview" title="Rendered map PDF" hidden></iframe>
+    <div class="template-actions" id="template-actions" hidden>
+      <button type="button" id="new-template">New from current settings</button>
+    </div>
     <div id="gallery" class="gallery" aria-label="Saved templates" hidden></div>
   </section>
 </main>
+<dialog id="template-edit" aria-labelledby="template-edit-heading">
+  <div class="template-edit-content">
+    <h2 id="template-edit-heading"></h2>
+    <label id="new-template-name">Template name<input id="template-edit-name" required maxlength="128"></label>
+    <label id="template-password-label">Template password<input id="template-edit-password" type="password" required autocomplete="new-password"></label>
+    <div class="dialog-actions">
+      <button type="button" value="confirm">Confirm</button>
+      <button type="button" value="cancel">Cancel</button>
+    </div>
+  </div>
+</dialog>
+<dialog id="template-prompt" aria-labelledby="prompt-heading">
+  <div class="prompt-heading">
+    <h2 id="prompt-heading"></h2>
+    <button id="close-prompt" type="button" aria-label="Close prompt">×</button>
+  </div>
+  <textarea id="prompt-text" aria-label="ChatGPT prompt" readonly spellcheck="false"></textarea>
+  <p id="prompt-status" role="status"></p>
+  <div class="dialog-actions">
+    <button id="copy-prompt" type="button">Copy Full Prompt</button>
+    <button id="copy-curl" type="button">Copy CURL to Clipboard</button>
+  </div>
+</dialog>
 <script>
   const form = document.querySelector("#settings");
   const status = document.querySelector("#status");
@@ -193,6 +237,24 @@
   const download = document.querySelector("#download");
   const gallery = document.querySelector("#gallery");
   const templateButton = document.querySelector("#show-templates");
+  const templateActions = document.querySelector("#template-actions");
+  const editDialog = document.querySelector("#template-edit");
+  const editName = document.querySelector("#template-edit-name");
+  const editPassword = document.querySelector("#template-edit-password");
+  const editConfirm = editDialog.querySelector('[value="confirm"]');
+  editConfirm.addEventListener("click", () => {
+    if (editName.reportValidity() && editPassword.reportValidity()) editDialog.close("confirm");
+  });
+  editDialog.querySelector('[value="cancel"]').addEventListener("click", () => editDialog.close("cancel"));
+  editDialog.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" && !event.isComposing && (event.target === editName || event.target === editPassword)) {
+      event.preventDefault();
+      editConfirm.click();
+    }
+  });
+  const newTemplate = document.querySelector("#new-template");
+  let templateBusy = false;
+  const templatePasswords = new Map();
   const button = form.querySelector("button");
   const iso = form.elements.giso;
   const angle = form.elements.gangle;
@@ -201,6 +263,53 @@
   const openedFromDisk = location.protocol === "file:";
   document.querySelector("#renderer-choice").hidden = !openedFromDisk;
   const renderEndpoint = () => openedFromDisk ? renderer.value : new URL("/render", location.origin).href;
+  const promptDialog = document.querySelector("#template-prompt");
+  const promptText = document.querySelector("#prompt-text");
+  const promptStatus = document.querySelector("#prompt-status");
+  let renderCommand = "";
+  document.querySelector("#close-prompt").addEventListener("click", () => promptDialog.close());
+  async function copyTemplatePrompt(curlOnly) {
+    const value = curlOnly ? renderCommand : promptText.value;
+    try {
+      await navigator.clipboard.writeText(value);
+    } catch {
+      promptText.focus();
+      promptText.setSelectionRange(curlOnly ? promptText.value.length - value.length : 0, promptText.value.length);
+      let copied = false;
+      try { copied = document.execCommand("copy"); } catch {}
+      if (!copied) {
+        promptStatus.textContent = "Copy was blocked. Press Ctrl+C to copy the selected text.";
+        return;
+      }
+    }
+    promptDialog.close();
+  }
+  document.querySelector("#copy-prompt").addEventListener("click", () => copyTemplatePrompt(false));
+  document.querySelector("#copy-curl").addEventListener("click", () => copyTemplatePrompt(true));
+
+  function showTemplatePrompt(id, name) {
+    const endpoint = new URL(renderEndpoint());
+    endpoint.searchParams.set("template_id", id);
+    const helpUrl = new URL("/help", endpoint);
+    const urlHelpUrl = new URL("/url", endpoint);
+    renderCommand = 'curl.exe --fail-with-body -F "image=@map.png" -o map.pdf "' + endpoint.href + '"';
+    document.querySelector("#prompt-heading").textContent = "ChatGPT prompt for " + name;
+    promptStatus.textContent = "";
+    promptText.value = [
+      "Hey, there's a Worker that converts map images (JPEG, PNG, or static WebP) into a sliced PDF using saved template settings.",
+      "",
+      "The full help file is here:",
+      'curl.exe -fsS "' + helpUrl.href + '"',
+      "",
+      "The URL override reference is here:",
+      'curl.exe -fsS "' + urlHelpUrl.href + '"',
+      "",
+      "The following command uses a saved template to convert an image into a sliced PDF. Replace map.png with the actual image path. Use curl instead of curl.exe outside Windows. If you can upload the image, return the PDF. Otherwise, give me the command to run.",
+      "",
+      renderCommand,
+    ].join("\n");
+    promptDialog.showModal();
+  }
   const empty = document.querySelector("#empty");
   let galleryRequest;
   let loadedValues = {};
@@ -210,7 +319,95 @@
   function closeGallery() {
     galleryRequest?.abort();
     gallery.hidden = true;
+    templateActions.hidden = true;
     templateButton.setAttribute("aria-expanded", "false");
+  }
+
+  function updateTemplateActions() {
+    newTemplate.disabled = templateBusy;
+    for (const button of gallery.querySelectorAll("button")) button.disabled = templateBusy;
+  }
+
+  function templateCredentials(action, target, rememberedPassword) {
+    const name = editName;
+    const password = editPassword;
+    name.disabled = action !== "create" && action !== "rename";
+    document.querySelector("#new-template-name").hidden = name.disabled;
+    name.value = action === "rename" ? target.name : form.elements.template.value;
+    password.value = "";
+    password.disabled = rememberedPassword !== undefined;
+    document.querySelector("#template-password-label").hidden = password.disabled;
+    document.querySelector("#template-edit-heading").textContent = action === "create"
+      ? "New template"
+      : action === "rename" ? "Rename " + target.name
+      : (action === "delete" ? "Delete " : "Save current settings to ") + target.name + "?";
+    editDialog.returnValue = "";
+    return new Promise((resolve) => {
+      editDialog.addEventListener("close", () => {
+        const credentials = editDialog.returnValue === "confirm"
+          ? { name: name.value, password: rememberedPassword ?? password.value }
+          : null;
+        password.value = "";
+        resolve(credentials);
+      }, { once: true });
+      editDialog.showModal();
+    });
+  }
+
+  async function changeTemplate(action, target) {
+    if (templateBusy) return;
+    const endpoint = new URL("/templates", renderEndpoint());
+    const settings = action === "create" || action === "overwrite" ? Object.fromEntries(renderParams()) : undefined;
+    const snapshot = settingsSnapshot();
+    templateBusy = true;
+    updateTemplateActions();
+    try {
+      const credentials = await templateCredentials(action, target, templatePasswords.get(endpoint.href));
+      if (!credentials) return;
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, alias: target?.alias, settings, ...credentials }),
+      });
+      const result = await response.json();
+      if (response.status === 403) templatePasswords.delete(endpoint.href);
+      if (!response.ok) throw new Error(result.error || "Template change failed (HTTP " + response.status + ").");
+      templatePasswords.set(endpoint.href, credentials.password);
+      if (gallery.hidden || new URL("/templates", renderEndpoint()).href !== endpoint.href) return;
+      if (settings && snapshot === settingsSnapshot()) {
+        form.elements.template.value = result.name;
+        cleanSettings = settingsSnapshot();
+      }
+      await showTemplates(action === "delete" ? "Template deleted."
+        : action === "rename" ? "Renamed to " + result.name + "." : "Saved " + result.name + ".");
+    } catch (error) {
+      if (!gallery.hidden) status.textContent = error.message;
+    } finally {
+      templateBusy = false;
+      updateTemplateActions();
+    }
+  }
+
+  newTemplate.addEventListener("click", () => changeTemplate("create"));
+
+  const cardIcons = {
+    load: "M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm17.71-10.04a1 1 0 0 0 0-1.41l-2.5-2.5a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.99-1.67z",
+    save: "M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4zM7 5h8v4H7V5zm5 14a3 3 0 1 1 0-6 3 3 0 0 1 0 6z",
+    rename: "M17.63 5.84C17.27 5.33 16.67 5 16 5H3v14h13c.67 0 1.27-.33 1.63-.84L22 12l-4.37-6.16zM7 11a1 1 0 1 1 0 2 1 1 0 0 1 0-2z",
+    delete: "M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6v12zM19 4h-4l-1-1h-4L9 4H5v2h14V4z",
+  };
+
+  function cardAction(icon, label, name, handler) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.setAttribute("aria-label", label + " " + name);
+    button.title = label + " " + name;
+    button.innerHTML = icon === "chatgpt"
+      ? '<img class="chatgpt-icon" src="./chatgpt.svg" alt="">'
+      : '<svg aria-hidden="true" viewBox="0 0 24 24"><path d="' + cardIcons[icon] + '"/></svg>';
+    button.disabled = templateBusy;
+    button.addEventListener("click", handler);
+    return button;
   }
 
   function loadSettings(saved) {
@@ -241,7 +438,7 @@
     cleanSettings = settingsSnapshot();
   }
 
-  templateButton.addEventListener("click", async () => {
+  async function showTemplates(message) {
     closeGallery();
     galleryRequest = new AbortController();
     const { signal } = galleryRequest;
@@ -258,18 +455,22 @@
       if (!response.ok) throw new Error("Could not load templates (HTTP " + response.status + ").");
       const templates = await response.json();
       if (signal.aborted) return;
-      for (const { alias, name, dimensions } of templates) {
-        const card = document.createElement("button");
-        card.type = "button";
-        card.setAttribute("aria-pressed", "false");
+      const previewVersion = String(Date.now());
+      updateTemplateActions();
+      templateActions.hidden = false;
+      for (const { alias, id, name, dimensions } of templates) {
+        const card = document.createElement("article");
+        card.className = "gallery-card";
         const itemUrl = new URL("/templates/" + encodeURIComponent(alias), endpoint);
         const thumbnail = document.createElement("img");
         thumbnail.alt = "";
         thumbnail.loading = "lazy";
-        thumbnail.src = itemUrl.href + "/preview.svg";
+        const thumbnailUrl = new URL(itemUrl.href + "/preview.svg");
+        thumbnailUrl.searchParams.set("v", previewVersion);
+        thumbnail.src = thumbnailUrl.href;
         const caption = document.createElement("span");
         caption.className = "gallery-caption";
-        const label = document.createElement("span");
+        const label = document.createElement("strong");
         label.textContent = name;
         caption.append(label);
         if (dimensions) {
@@ -278,32 +479,56 @@
           details.textContent = dimensions;
           caption.append(details);
         }
-        card.append(thumbnail, caption);
-        gallery.append(card);
-        card.addEventListener("click", async () => {
+        const actions = document.createElement("div");
+        actions.className = "card-actions";
+        actions.append(cardAction("load", "Load", name, async () => {
           if (settingsSnapshot() !== cleanSettings && !confirm("Replace the current settings with " + name + "?")) return;
           const snapshot = settingsSnapshot();
-          for (const item of gallery.children) item.disabled = true;
+          templateBusy = true;
+          updateTemplateActions();
           try {
             const response = await fetch(itemUrl, { signal });
             if (!response.ok) throw new Error("Could not load " + name + " (HTTP " + response.status + ").");
             const saved = await response.json();
             if (signal.aborted || (snapshot !== settingsSnapshot() && !confirm("Replace the settings you just changed?"))) return;
             loadSettings(saved);
-            for (const item of gallery.children) item.setAttribute("aria-pressed", String(item === card));
             status.textContent = "Loaded " + name;
           } catch (error) {
             if (!signal.aborted) status.textContent = error.message;
           } finally {
-            if (!signal.aborted) for (const item of gallery.children) item.disabled = false;
+            templateBusy = false;
+            updateTemplateActions();
           }
-        });
+        }));
+        const target = { alias, name };
+        actions.append(cardAction("save", "Save to", name, () => changeTemplate("overwrite", target)));
+        if (id) {
+          actions.append(cardAction("chatgpt", "Preview ChatGPT prompt for", name, () => showTemplatePrompt(id, name)));
+        }
+        if (alias !== "default") {
+          actions.append(cardAction("rename", "Rename", name, () => changeTemplate("rename", target)));
+        }
+        if (id) {
+          const chip = document.createElement("span");
+          chip.className = "template-id-chip";
+          chip.textContent = id;
+          chip.title = "Template ID " + id;
+          actions.prepend(chip);
+        }
+        if (alias !== "default") {
+          const remove = cardAction("delete", "Delete", name, () => changeTemplate("delete", target));
+          remove.className = "card-delete";
+          actions.append(remove);
+        }
+        card.append(actions, thumbnail, caption);
+        gallery.append(card);
       }
-      status.textContent = "Saved templates. Select one to load its settings.";
+      status.textContent = message || "Saved templates";
     } catch (error) {
       if (!signal.aborted) status.textContent = error.message;
     }
-  });
+  }
+  templateButton.addEventListener("click", () => showTemplates());
 
   renderer.addEventListener("change", () => {
     if (!gallery.hidden) templateButton.click();
@@ -345,6 +570,15 @@
     return sign + digits.slice(0, point) + "." + digits.slice(point);
   }
 
+  function renderParams() {
+    const params = new URLSearchParams(new FormData(form));
+    for (const input of form.querySelectorAll('input[type="number"]:enabled')) {
+      params.set(input.name, decimal(input.value));
+    }
+    if (iso.value === "false") params.set("gangle", "null");
+    return params;
+  }
+
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     // Keep exact stored values and the bundled 1/8-inch overlap usable.
@@ -363,15 +597,10 @@
       input.step = step;
     }
     if (!valid) return;
-    const formValues = new FormData(form);
     const upload = new FormData();
     const image = document.querySelector("#image").files[0];
     upload.append("image", image);
-    const params = new URLSearchParams(formValues);
-    for (const input of form.querySelectorAll('input[type="number"]:enabled')) {
-      params.set(input.name, decimal(input.value));
-    }
-    if (iso.value === "false") params.set("gangle", "null");
+    const params = renderParams();
     const fileName = image.name.replace(/\.[^.]+$/, "") + ".pdf";
     button.disabled = true;
     status.textContent = "Rendering…";

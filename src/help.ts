@@ -178,9 +178,10 @@ HTTP REQUEST AND RESPONSE
   GET /url      Plain-text URL parameter reference with defaults.
   POST /render  Send multipart/form-data with one JPEG, PNG, or static WebP file in "image"
                 and optionally one JSON file in "template_file" or one
-                saved name in "template_alias". Omit both to use Default
-                from D1, with the bundled JSON as fallback.
-  GET /templates  List saved templates by alias and display name.
+                saved alias in "template_alias". To select by ID, use
+                ?template_id=0001 in place of either field. With no
+                selector, use Default from D1 or the bundled fallback.
+  GET /templates  List saved templates by ID, alias, and display name.
   GET /templates/{alias}
                 Read a saved template as JSON. Use /templates/default for
                 the current Default.

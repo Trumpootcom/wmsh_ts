@@ -28,7 +28,7 @@ const descriptions: Record<keyof typeof aliases, string> = {
   poverlap: "Overlap per join in inches",
 };
 
-const columnWidths = [10, 23, 18, 49];
+const columnWidths = [11, 23, 18, 49];
 
 function border(left: string, join: string, right: string): string {
   return left + columnWidths.map((width) => "─".repeat(width + 2)).join(join) + right;
@@ -55,6 +55,7 @@ function row(alias: string, field: string, value: string, description: string): 
 }
 
 const rows = { Global: [] as string[], Grid: [] as string[], Page: [] as string[] };
+rows.Global.push(row("template_id", "-", "0001", "Select a saved D1 template by numeric ID"));
 for (const [alias, [field]] of Object.entries(aliases)) {
   const value = field.split(".").reduce<unknown>(
     (parent, key) => (parent as Record<string, unknown>)[key], defaults,
@@ -81,9 +82,10 @@ titled overview page.
 
 Use curl on macOS or Linux. Replace map.png with your image path.
 Add -F "template_file=@template.json" to use a complete custom template.
-Use -F "template_alias=default" to select a saved template by alias.
-With neither field, the Worker loads Default from D1 or the bundled
-fallback. Overrides apply to the selected template for this request.
+Use ?template_id=0001 to select a saved template by ID. Old commands
+can still use -F "template_alias=default". With no template selector,
+the Worker loads Default from D1 or the bundled fallback.
+Overrides apply to the selected template for this request.
 
 ${table}
 

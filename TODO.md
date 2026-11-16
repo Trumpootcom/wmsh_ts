@@ -1,5 +1,7 @@
 # TODO for November 14, 2026
 
+- [ ] Support fractional paper rows and columns (`page.rows` / `page.columns`, URL aliases `pr` / `pc`). For example, 2.5 rows should generate three physical rows of sheets, but fit the image and draw the grid within a 2.5-row printable canvas. Preserve overlap between adjoining sheets. Leave the unused portion of the final sheet blank and show a trim line for assembly. Apply the same rule to partial columns and show the trim boundary in the overview and template preview.
+
 - [x] Remove the single-option Image Placement and Grid Extent controls from the test page and display Overview as a global setting alongside the image and title.
 
 - [x] Record uploaded image bytes and generated PDF bytes in Cloudflare Workers Analytics Engine and document the daily totals query.
@@ -14,7 +16,7 @@
 - [x] Implement read-only D1 template loading by alias and a bundled fallback for Default.
 - [ ] Bind the wmsh-ts D1 database, apply the migration to seed Default, and deploy the Worker.
 - [x] Add the read-only template gallery with overview-style thumbnails and load-on-click controls.
-- [ ] Add a **Save as template** action to `test.html` that saves the current settings to D1 under a name you enter.
+- [x] Add password-protected creation, overwrite, and deletion of D1 templates from the gallery. Default can be overwritten.
 
 - [x] Publish the test interface at [the Worker’s /test.html](https://wmsh-ts.trumpoot.workers.dev/test.html) and verify image upload, rendering, PDF preview, and download.
 

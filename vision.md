@@ -196,7 +196,7 @@ Returns a blank-map thumbnail with the configured grid, sheet cuts, and sheet ba
 
 ## 7. Template Library
 
-The initial library is seeded with a copy of the bundled Default template. The Worker reads the current templates directly from D1. Updating a D1 template does not require redeploying the Worker. The browser gallery loads saved settings into the form. Password-protected template writes are planned separately.
+The initial library is seeded with a copy of the bundled Default template. The Worker reads the current templates directly from D1. Updating a D1 template does not require redeploying the Worker. The browser gallery loads saved settings into the form and supports password-protected creation, overwrite, and deletion through `POST /templates`. Default can be overwritten and is protected from deletion.
 
 Template aliases should be stable identifiers independent of human-readable template names.
 

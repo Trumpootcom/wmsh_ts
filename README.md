@@ -26,7 +26,7 @@ Omit both template fields to use **Default** from D1, with the bundled [160-foot
 
 ## Saved templates
 
-The Worker reads JSON from the `templates` table in the `wmsh-ts` D1 database. Read a template with `GET /templates/<alias>`. A missing alias returns 404, except `default`, which falls back to the bundled JSON.
+The Worker reads JSON from the `templates` table in the `wmsh-ts` D1 database. Each card shows its stable numeric ID. Use `/render?template_id=0001` to render with Default by ID. Existing `template_alias` commands still work. Read the JSON directly with `GET /templates/<alias>`.
 
 Bind the database as `TEMPLATES` using its Database ID in `wrangler.jsonc`. Before deploying the binding, apply the migration to create the table and seed Default:
 
@@ -36,7 +36,11 @@ npx.cmd wrangler d1 migrations apply wmsh-ts --remote
 
 For local Wrangler storage, run the same command with `--local`.
 
-On the test page, click **Templates** to open the read-only gallery. Click a card to load its settings into the form, then render with those settings. The gallery uses `GET /templates` for names and aliases and `GET /templates/<alias>/preview.svg` for blank-map thumbnails.
+On the test page, click **Templates** to open the gallery. Each card has **Load** to copy its settings into the form and **Save to** to overwrite that template with the current form settings. Templates other than Default also have **Rename** and **Delete**. Rename updates the display name and preserves the alias used in render requests. **New from current settings** asks for a name.
+
+Set the production password with `npx.cmd wrangler secret put TEMPLATE_PASSWORD`. For local Wrangler, put `TEMPLATE_PASSWORD="your-local-password"` in the git-ignored `.dev.vars` file and restart the server. After a successful edit, the page remembers the password for that renderer until reload. The Worker receives it in the POST body.
+
+The gallery uses `GET /templates` for names and aliases, `GET /templates/<alias>/preview.svg` for thumbnails, and `POST /templates` for password-protected changes.
 
 The bundled template prepends a landscape assembly guide titled **TTRPG Battle Map**. Use `?overview=0` or turn off **Overview page** in `test.html` to omit it. Custom templates can set `"overview": true` or use `?overview=1` to include it.
 
