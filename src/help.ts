@@ -176,9 +176,15 @@ HTTP REQUEST AND RESPONSE
 
   GET /help     This plain-text guide.
   GET /url      Plain-text URL parameter reference with defaults.
-  POST /render  Send multipart/form-data with one JPEG, PNG, or static WebP file in "image"
-                and optionally one JSON file in "template_file" or one
-                saved alias in "template_alias". To select by ID, use
+  POST /render  Supply one JPEG, PNG, or static WebP using either the
+                multipart "image" field or the imageUrl query parameter.
+                imageUrl accepts public HTTPS Google Drive direct download
+                links and works with an empty POST body. Encode the full
+                Drive URL as a single query parameter value. Downloads
+                are limited to 20 MiB and 15 seconds.
+                In a multipart body, optionally send one JSON file in
+                "template_file" or one saved alias in "template_alias".
+                To select by ID, use
                 ?template_id=0001 in place of either field. With no
                 selector, use Default from D1 or the bundled fallback.
   GET /templates  List saved templates by ID, alias, and display name.
@@ -219,9 +225,14 @@ STATUS CODES
 
   200  A PDF attachment (application/pdf). The server suggests a UTC
        timestamp filename. The example curl command saves it as map.pdf.
-  400  Upload missing or duplicated, multipart data unreadable, or invalid JSON.
-  415  Request must use multipart/form-data.
+  400  Missing, duplicate, or conflicting image sources, invalid imageUrl,
+       unreadable multipart data, or invalid JSON.
+  413  Google Drive image exceeds 20 MiB.
+  415  A request body must use multipart/form-data.
   422  Invalid template field, unreadable image, or invalid fitted scale.
+       Google Drive did not return a public image download.
+  502  Google Drive download failed.
+  504  Google Drive download timed out.
 
 Errors from the Worker are JSON with an "error" message. With
 --fail-with-body and -o map.pdf, curl exits with an error and may save
@@ -232,4 +243,15 @@ world width in feet, the desired printed inches per five feet, and the
 paper layout. Use the template above to prepare a complete JSON file.
 If you cannot access the user's local image, give them the JSON and upload
 command to run on their own machine.
+
+GOOGLE DRIVE WORKFLOW
+
+  Upload the approved map to a Google Drive folder shared as Anyone
+  with the link → Viewer. Replace FILE_ID with the image file ID.
+  Use an HTTP tool to send this POST with an empty body:
+
+  POST https://wmsh-ts.trumpoot.workers.dev/render?template_id=0001&wid=160&imageUrl=https%3A%2F%2Fdrive.google.com%2Fuc%3Fexport%3Ddownload%26id%3DFILE_ID
+
+  On success, save the PDF response to the same Drive folder using the
+  requested filename and share links to the image and PDF.
 `;

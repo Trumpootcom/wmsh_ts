@@ -28,6 +28,8 @@ Omit both template fields to use **Default** from D1, with the bundled [160-foot
 
 The Worker reads JSON from the `templates` table in the `wmsh-ts` D1 database. Each card shows its stable numeric ID. Use `/render?template_id=0001` to render with Default by ID. Existing `template_alias` commands still work. Read the JSON directly with `GET /templates/<alias>`.
 
+For the [Google Drive workflow](WORKFLOW.md), send an empty-body `POST /render` with a public Google Drive direct download link in the `imageUrl` query parameter. URL-encode the entire Drive link as one value. You can also send `template_id`, `wid`, and `title` in the query string. Supply one image source per request.
+
 Bind the database as `TEMPLATES` using its Database ID in `wrangler.jsonc`. Before deploying the binding, apply the migration to create the table and seed Default:
 
 ```powershell
@@ -50,7 +52,7 @@ You can also open [public/test.html](public/test.html) directly from disk and ch
 
 ## Render traffic
 
-Cloudflare Workers Analytics Engine records uploaded image bytes and generated PDF bytes in `wmsh_render_traffic`. An accepted image field counts even if rendering later fails. Generated PDF bytes measure the response body prepared by the Worker. The totals exclude multipart and HTTP overhead, help pages, and static assets.
+Cloudflare Workers Analytics Engine records input image bytes and generated PDF bytes in `wmsh_render_traffic`. Bytes from an accepted image field or completed Drive download count even if rendering later fails. Generated PDF bytes measure the response body prepared by the Worker. The totals exclude multipart and HTTP overhead, help pages, and static assets.
 
 Run this through the [Analytics Engine SQL API](https://developers.cloudflare.com/analytics/analytics-engine/sql-api/) to see daily totals in decimal MB. Multiply by the sampling interval to account for sampled data.
 

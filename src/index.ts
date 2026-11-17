@@ -11,6 +11,7 @@ import { drawContrastGrid } from "./contrast";
 import { workingJpeg } from "./workingImage";
 import { addOverview } from "./overview";
 import { drawSheetBadge } from "./sheetBadge";
+import { downloadDriveImage, DriveImageError, parseDriveImageUrl } from "./driveImage";
 
 function error(message: string, status: number, headers?: HeadersInit) {
   return Response.json({ error: message }, { status, headers });
@@ -96,28 +97,45 @@ async function handleRequest(request: Request, metrics?: AnalyticsEngineDataset,
     return error("Route not found. See GET /help for usage.", 404);
   }
   if (request.method !== "POST") {
-    return error("Use POST to upload a JPEG, PNG, or WebP.", 405, { Allow: "POST" });
-  }
-  if (!/^multipart\/form-data(?:\s*;|$)/i.test(request.headers.get("Content-Type") ?? "")) {
-    return error("Send a multipart/form-data request.", 415);
+    return error("Use POST with an image upload or imageUrl.", 405, { Allow: "POST" });
   }
 
-  let form: FormData;
-  try {
-    form = await request.formData();
-  } catch {
-    return error("Could not read the multipart upload.", 400);
+  const imageUrls = searchParams.getAll("imageUrl");
+  searchParams.delete("imageUrl");
+  if (imageUrls.length > 1) return error("Specify imageUrl only once.", 400);
+  const [imageUrl] = imageUrls;
+  const multipart = /^multipart\/form-data(?:\s*;|$)/i.test(request.headers.get("Content-Type") ?? "");
+  let form: FormData | undefined;
+  if (multipart) {
+    try {
+      form = await request.formData();
+    } catch {
+      return error("Could not read the multipart upload.", 400);
+    }
+  } else if (request.body !== null) {
+    return error("Use multipart/form-data for a request body.", 415);
   }
-  const images = form.getAll("image");
+  const images = form?.getAll("image") ?? [];
+  if (images.length && imageUrl !== undefined) {
+    return error("Choose one image source: the image field or imageUrl.", 400);
+  }
   const [upload] = images;
-  if (images.length !== 1 || typeof upload === "string" || !upload?.size) {
-    return error("Upload exactly one JPEG, PNG, or WebP file in the image field.", 400);
+  let driveUrl: URL | undefined;
+  if (imageUrl !== undefined) {
+    try {
+      driveUrl = parseDriveImageUrl(imageUrl);
+    } catch (failure) {
+      if (failure instanceof DriveImageError) return error(failure.message, failure.status);
+      throw failure;
+    }
+  } else if (images.length !== 1 || typeof upload === "string" || !upload?.size) {
+    return error("Provide imageUrl or upload exactly one JPEG, PNG, or WebP file in the image field.", 400);
   }
-  recordBytes(metrics, upload.size, 0);
+  if (upload instanceof File) recordBytes(metrics, upload.size, 0);
 
-  const templates = form.getAll("template_file");
+  const templates = form?.getAll("template_file") ?? [];
   const [templateFile] = templates;
-  const aliases = form.getAll("template_alias");
+  const aliases = form?.getAll("template_alias") ?? [];
   const [alias] = aliases;
   const ids = searchParams.getAll("template_id");
   const [templateId] = ids;
@@ -159,9 +177,19 @@ async function handleRequest(request: Request, metrics?: AnalyticsEngineDataset,
   const pdf = await PDFDocument.create();
   let bytes: Uint8Array;
   try {
-    bytes = await workingJpeg(await upload.arrayBuffer());
+    let source: ArrayBuffer;
+    if (driveUrl) {
+      source = await downloadDriveImage(driveUrl);
+      recordBytes(metrics, source.byteLength, 0);
+    } else if (upload instanceof File) {
+      source = await upload.arrayBuffer();
+    } else {
+      return error("Missing image source.", 400);
+    }
+    bytes = await workingJpeg(source);
   } catch (failure) {
-    return error(failure instanceof Error ? failure.message : "The uploaded image could not be converted.", 422);
+    if (failure instanceof DriveImageError) return error(failure.message, failure.status);
+    return error(failure instanceof Error ? failure.message : "The image could not be converted.", 422);
   }
   let image;
   try {

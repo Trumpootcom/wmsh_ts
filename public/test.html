@@ -67,9 +67,13 @@
   .card-actions .chatgpt-icon { width: 65%; height: 65%; border: 0; background: transparent }
   .card-actions .svg-icon { width: 85%; height: 85%; border: 0; background: transparent }
 
-  #template-prompt {  width: min(75vw, calc(100% - 24px));  height: 50vh;  max-height: 90vh;  padding: 18px;  flex-direction: column;  gap: 12px;}
+  #template-prompt {  width: min(1120px, calc(100% - 24px));  height: 75vh;  max-height: 90vh;  padding: 18px;  flex-direction: column;  gap: 12px;}
   #template-prompt[open] {  display: flex;}
-  #prompt-text {  width: 100%;  flex: 1;  min-height: 0;  padding: 10px;  resize: none;  font: 13px/1.5 ui-monospace, monospace;}
+  .prompt-workflows { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); flex: 1; min-height: 0; gap: 16px }
+  .prompt-workflow { display: flex; flex-direction: column; min-height: 0; gap: 8px }
+  .prompt-workflow label { font-weight: 700 }
+  .prompt-workflow textarea { width: 100%; flex: 1; min-height: 0; padding: 10px; resize: none; overflow: auto; font: 13px/1.5 ui-monospace, monospace }
+  .prompt-workflow button { align-self: start; width: auto }
   .prompt-heading { display: flex; justify-content: space-between; align-items: start; gap: 12px }
   .prompt-heading h2 { margin: 0 0 12px; overflow-wrap: anywhere }
   .prompt-heading button { width: auto }
@@ -84,6 +88,7 @@
   [hidden] { display: none !important }
   .empty { margin: auto; padding: 20px; text-align: center; color: var(--muted) }
   @media (max-width: 650px) {
+    .prompt-workflows { grid-template-columns: minmax(0, 1fr); grid-template-rows: repeat(2, minmax(0, 1fr)) }
     header { height: auto; min-height: 64px; flex-wrap: wrap; padding: 8px 12px; gap: 8px }
     .header-icon { height: 40px }
     header > span { display: none }
@@ -233,12 +238,19 @@
     <h2 id="prompt-heading"></h2>
     <button id="close-prompt" type="button" aria-label="Close prompt">×</button>
   </div>
-  <textarea id="prompt-text" aria-label="ChatGPT prompt" readonly spellcheck="false"></textarea>
-  <p id="prompt-status" role="status"></p>
-  <div class="dialog-actions">
-    <button id="copy-prompt" type="button">Copy Full Prompt</button>
-    <button id="copy-curl" type="button">Copy CURL to Clipboard</button>
+  <div class="prompt-workflows">
+    <div class="prompt-workflow">
+      <label for="curl-workflow">CURL Workflow</label>
+      <textarea id="curl-workflow" readonly spellcheck="false"></textarea>
+      <button id="copy-curl" type="button">Copy CURL Workflow</button>
+    </div>
+    <div class="prompt-workflow">
+      <label for="drive-workflow">Google Drive Workflow</label>
+      <textarea id="drive-workflow" readonly spellcheck="false"></textarea>
+      <button id="copy-drive-prompt" type="button">Copy Google Drive Workflow</button>
+    </div>
   </div>
+  <p id="prompt-status" role="status"></p>
 </dialog>
 <script>
   const form = document.querySelector("#settings");
@@ -274,17 +286,16 @@
   document.querySelector("#renderer-choice").hidden = !openedFromDisk;
   const renderEndpoint = () => openedFromDisk ? renderer.value : new URL("/render", location.origin).href;
   const promptDialog = document.querySelector("#template-prompt");
-  const promptText = document.querySelector("#prompt-text");
+  const curlWorkflow = document.querySelector("#curl-workflow");
+  const driveWorkflow = document.querySelector("#drive-workflow");
   const promptStatus = document.querySelector("#prompt-status");
-  let renderCommand = "";
   document.querySelector("#close-prompt").addEventListener("click", () => promptDialog.close());
-  async function copyTemplatePrompt(curlOnly) {
-    const value = curlOnly ? renderCommand : promptText.value;
+  async function copyTemplatePrompt(workflow) {
     try {
-      await navigator.clipboard.writeText(value);
+      await navigator.clipboard.writeText(workflow.value);
     } catch {
-      promptText.focus();
-      promptText.setSelectionRange(curlOnly ? promptText.value.length - value.length : 0, promptText.value.length);
+      workflow.focus();
+      workflow.select();
       let copied = false;
       try { copied = document.execCommand("copy"); } catch {}
       if (!copied) {
@@ -294,35 +305,53 @@
     }
     promptDialog.close();
   }
-  document.querySelector("#copy-prompt").addEventListener("click", () => copyTemplatePrompt(false));
-  document.querySelector("#copy-curl").addEventListener("click", () => copyTemplatePrompt(true));
+  document.querySelector("#copy-curl").addEventListener("click", () => copyTemplatePrompt(curlWorkflow));
+  document.querySelector("#copy-drive-prompt").addEventListener("click", () => copyTemplatePrompt(driveWorkflow));
 
   function showTemplatePrompt(id, name) {
     const endpoint = new URL(renderEndpoint());
     endpoint.searchParams.set("template_id", id);
     endpoint.searchParams.set("wid", "160");
+    endpoint.searchParams.set("title", "The Giant's Farm");
     const helpUrl = new URL("/help", endpoint);
     const urlHelpUrl = new URL("/url", endpoint);
-    renderCommand = 'curl.exe --fail-with-body -F "image=@map.png" -o map.pdf "' + endpoint.href + '"';
-    document.querySelector("#prompt-heading").textContent = "ChatGPT prompt for " + name;
+    const renderCommand = 'curl.exe --fail-with-body -F "image=@map.jpg" -o "map.pdf" "' + endpoint.href + '"';
+    const driveEndpoint = new URL(endpoint);
+    driveEndpoint.searchParams.set("imageUrl", "https://drive.google.com/uc?export=download&id=FILE_ID");
+    const intro = "Help me create a printable tabletop battle map using the WMS Headless Slicer.";
+    const references = "Worker help\n" + helpUrl.href + "\n\nURL parameter reference\n" + urlHelpUrl.href;
+    const generateImage = "Generate and refine the map image. Show it to me and revise it until I approve it. Preserve the approved image without a grid so WMS can render the grid.";
+    const selectTemplate = "Use the selected template (" + name + ", ID " + id + "). Use the Worker documentation to check its paper arrangement and grid settings.";
+    const specifyWidth = "Ask for the map width in feet and use it as wid. WMS derives the height from the image aspect ratio.";
+    const specifyOutput = "Ask for the map title and output PDF filename. URL-encode the title query value.";
+
+    curlWorkflow.value = [
+      "CURL Workflow", intro, references,
+      ...[
+        generateImage,
+        "Ask for the approved map image path relative to the current working directory. Use a JPEG, PNG, or static WebP.",
+        selectTemplate,
+        specifyWidth,
+        specifyOutput,
+        "Build the multipart POST command below with the supplied image path and output filename, both relative to the current working directory. Use curl.exe on Windows and curl on macOS or Linux. Run it if shell access is available, or give me the command to run.\n\n   " + renderCommand,
+        "If you ran the command, verify the response is a PDF and report its saved path, template, map width, and title. Report any failure or blocked step.",
+      ].map((step, index) => (index + 1) + ". " + step),
+    ].join("\n\n");
+    driveWorkflow.value = [
+      "Google Drive Workflow", intro, references,
+      ...[
+        "Ask for a Google Drive folder URL with upload access and Anyone with the link → Viewer sharing. Use this folder for the source image and output PDF.",
+        generateImage,
+        "Upload the approved JPEG to the folder and record its file ID. Construct the direct download URL as https://drive.google.com/uc?export=download&id=FILE_ID. The Worker needs the image bytes, so verify the link serves the JPEG.",
+        selectTemplate,
+        specifyWidth,
+        specifyOutput,
+        "Use an HTTP tool to send the empty-body POST below. Replace FILE_ID with the JPEG file ID and set wid and title to the requested values. If building the URL, encode the full direct download URL as one imageUrl query value. Verify the response is a PDF.\n\n   POST " + driveEndpoint.href,
+        "Upload the PDF to the same Drive folder using the requested filename. Confirm the save, then share links to the source JPEG and PDF and report the template, map width, and title. If a required tool or connection is unavailable, tell me which step is blocked.",
+      ].map((step, index) => (index + 1) + ". " + step),
+    ].join("\n\n");
+    document.querySelector("#prompt-heading").textContent = "ChatGPT workflows for " + name;
     promptStatus.textContent = "";
-    promptText.value = [
-      "Hey, there's a Worker that converts map images (JPEG, PNG, or static WebP) into a sliced PDF using saved template settings.",
-      "",
-      "The full help file is here:",
-      'curl.exe -fsS "' + helpUrl.href + '"',
-      "",
-      "The URL override reference is here:",
-      'curl.exe -fsS "' + urlHelpUrl.href + '"',
-      "",
-      "The following command uses a saved template to convert an image into a sliced PDF.",
-      " - Use curl instead of curl.exe outside Windows.",
-      " - Replace map.png with the actual image path. ",
-      " - '?template=####' <-- CONTROLS THE OVERALL ASSEMBLED MAP PAPER ARRAY SIZE",
-      " - '&wid=160'       <-- CONTROLS THE OVERALL IMAGE SIZE (in world scale feet)",
-      "",
-      renderCommand,
-    ].join("\n");
     promptDialog.showModal();
   }
   const empty = document.querySelector("#empty");

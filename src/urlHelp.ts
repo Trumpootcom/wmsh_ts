@@ -87,6 +87,14 @@ can still use -F "template_alias=default". With no template selector,
 the Worker loads Default from D1 or the bundled fallback.
 Overrides apply to the selected template for this request.
 
+For a public Google Drive image, send POST with an empty body and pass
+the URL-encoded direct download link as imageUrl. For example:
+
+  POST /render?template_id=0001&wid=160&imageUrl=https%3A%2F%2Fdrive.google.com%2Fuc%3Fexport%3Ddownload%26id%3DFILE_ID
+
+Use imageUrl or a multipart image field. Drive downloads are limited
+to 20 MiB and 15 seconds.
+
 ${table}
 
 Quote the full URL and join multiple parameters with &. Use each alias
