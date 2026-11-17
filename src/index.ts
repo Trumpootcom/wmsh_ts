@@ -43,9 +43,16 @@ function recordBytes(metrics: AnalyticsEngineDataset | undefined, imageBytes: nu
 }
 
 export default {
-  async fetch(request: Request, env?: { RENDER_METRICS?: AnalyticsEngineDataset; TEMPLATES?: D1Database; TEMPLATE_PASSWORD?: string }): Promise<Response> {
+  async fetch(request: Request, env?: { ASSETS?: Fetcher; RENDER_METRICS?: AnalyticsEngineDataset; TEMPLATES?: D1Database; TEMPLATE_PASSWORD?: string }): Promise<Response> {
     // Standalone test.html sends Origin: null when opened from disk.
     const { pathname } = new URL(request.url);
+    if (pathname === "/test") {
+      if (request.method !== "GET" && request.method !== "HEAD") {
+        return error("Use GET or HEAD /test to retrieve the sample PDF.", 405, { Allow: "GET, HEAD" });
+      }
+      if (!env?.ASSETS) return error("The sample PDF is unavailable.", 503);
+      return env.ASSETS.fetch(new Request(new URL("/map.pdf", request.url), { method: request.method }));
+    }
     const templateRead = pathname === "/templates" || pathname.startsWith("/templates/");
     if ((pathname === "/render" || templateRead) && request.headers.get("Origin") === "null") {
       const response = request.method === "OPTIONS"

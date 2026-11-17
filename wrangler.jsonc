@@ -17,6 +17,7 @@
     }
   ],
   "assets": {
+    "binding": "ASSETS",
     "directory": "./public",
     "html_handling": "none"
   }
