@@ -17,6 +17,23 @@ function error(message: string, status: number, headers?: HeadersInit) {
   return Response.json({ error: message }, { status, headers });
 }
 
+async function hasBodyBytes(body: Request["body"]): Promise<boolean> {
+  if (!body) return false;
+  const reader = body.getReader();
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) return false;
+      if (value.byteLength > 0) {
+        await reader.cancel();
+        return true;
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
+
 function recordBytes(metrics: AnalyticsEngineDataset | undefined, imageBytes: number, pdfBytes: number) {
   try {
     metrics?.writeDataPoint({ doubles: [imageBytes, pdfBytes] });
@@ -112,7 +129,7 @@ async function handleRequest(request: Request, metrics?: AnalyticsEngineDataset,
     } catch {
       return error("Could not read the multipart upload.", 400);
     }
-  } else if (request.body !== null) {
+  } else if (await hasBodyBytes(request.body)) {
     return error("Use multipart/form-data for a request body.", 415);
   }
   const images = form?.getAll("image") ?? [];
