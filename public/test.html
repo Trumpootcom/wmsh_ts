@@ -128,6 +128,10 @@
         <span>Overview <small>overview</small></span>
         <select name="overview"><option value="0">Off</option><option value="1" selected>On</option></select>
       </label>
+      <label>
+        <span>Coordinates <small>coordinates</small></span>
+        <select name="coordinates"><option value="0">Off</option><option value="1">On</option></select>
+      </label>
       <fieldset>
         <legend>Map</legend>
         <label>
@@ -484,6 +488,7 @@ function cardAction(icon, label, name, handler) {
     const values = {
       template: saved.template ?? saved.name, title: saved.title ?? "TTRPG Battle Map",
       overview: saved.overview ? "1" : "0", wid: saved.worldWidthFeet,
+      coordinates: saved.coordinates ? "1" : "0",
       gstyle: grid.style === "hex" ? "hex" : "rect", giso: projected,
       gangle: grid.isoAngleDegrees ?? "", grot: grid.rotationDegrees, gx: grid.offsetX, gy: grid.offsetY,
       gscale: grid.inchesPerFiveFeet, gline: Object.hasOwn(patterns, grid.lineStyle) ? patterns[grid.lineStyle] : grid.lineStyle,

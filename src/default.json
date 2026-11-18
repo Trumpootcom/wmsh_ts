@@ -3,6 +3,7 @@
   "template": "Default",
   "title": "TTRPG Battle Map",
   "overview": true,
+  "coordinates": false,
   "worldWidthFeet": 160,
   "imagePlacement": "center",
   "grid": {

@@ -6,6 +6,7 @@ const descriptions: Record<keyof typeof aliases, string> = {
   template: "Template name (legacy alias: name)",
   title: "Overview title",
   overview: "Global toggle: 1 to include, 0 to omit",
+  coordinates: "Global toggle: 1 to include, 0 to omit (orthogonal square grids only)",
   place: "center",
   gstyle: "rect or hex; legacy aliases: square and iso",
   giso: "true for projection, false for regular cells",

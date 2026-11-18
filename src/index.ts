@@ -11,6 +11,7 @@ import { drawContrastGrid } from "./contrast";
 import { workingJpeg } from "./workingImage";
 import { addOverview } from "./overview";
 import { drawSheetBadge } from "./sheetBadge";
+import { coordinateBarStyle, drawCoordinateBorder } from "./coordinateBorder";
 import { downloadDriveImage, DriveImageError, parseDriveImageUrl } from "./driveImage";
 
 function error(message: string, status: number, headers?: HeadersInit) {
@@ -235,7 +236,15 @@ async function handleRequest(request: Request, metrics?: AnalyticsEngineDataset,
   const stepY = printableHeight - overlap;
   const canvasWidth = printableWidth + (columns - 1) * stepX;
   const canvasHeight = printableHeight + (rows - 1) * stepY;
-  const mapWidth = Math.min(requestedWidth, canvasWidth, canvasHeight / aspect);
+  const hasCoordinateBorder = template.coordinates && template.style === "rect" && !template.iso && template.rotation === 0;
+  const coordinateReserve = hasCoordinateBorder
+    ? 2 * template.spacing * coordinateBarStyle.barThicknessRatio
+    : 0;
+  const mapWidth = Math.min(
+    requestedWidth,
+    canvasWidth - coordinateReserve,
+    (canvasHeight - coordinateReserve) / aspect,
+  );
   const mapHeight = mapWidth * aspect;
   if (mapWidth <= 0 || mapHeight <= 0) {
     return error("The fitted image has invalid dimensions.", 422);
@@ -265,6 +274,7 @@ async function handleRequest(request: Request, metrics?: AnalyticsEngineDataset,
   }
 
   const pageNumberFont = await pdf.embedFont(StandardFonts.HelveticaBold);
+  const coordinateFont = await pdf.embedFont(coordinateBarStyle.font);
   if (template.overview) {
     await addOverview(pdf, image, pageNumberFont, template, {
       canvasWidth, canvasHeight, mapWidth, mapHeight, mapLeft, mapTop,
@@ -313,6 +323,14 @@ async function handleRequest(request: Request, metrics?: AnalyticsEngineDataset,
       drawSheetBadge(page, pageNumberFont, row, col, {
         left: margin, bottom: margin, width: printableWidth, height: printableHeight,
       });
+      if (hasCoordinateBorder) {
+        drawCoordinateBorder(page, coordinateFont, {
+          pageWidth, pageHeight, margin, spacing: template.spacing,
+          offsetX: template.offsetX, offsetY: template.offsetY,
+          sheetLeft, sheetTop, stepX, stepY, canvasWidth, canvasHeight,
+          mapLeft, mapTop, mapWidth, mapHeight, row, column: col,
+        });
+      }
     }
   }
 

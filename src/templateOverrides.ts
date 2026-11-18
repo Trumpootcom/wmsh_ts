@@ -3,6 +3,7 @@ export const aliases = {
   template: ["template", "text"],
   title: ["title", "text"],
   overview: ["overview", "boolean"],
+  coordinates: ["coordinates", "boolean"],
   place: ["imagePlacement", "text"],
   gstyle: ["grid.style", "text"],
   giso: ["grid.iso", "trueFalse"],

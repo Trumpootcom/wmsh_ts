@@ -1,5 +1,9 @@
 # TODO for November 14, 2026
 
+## Performance optimizations
+
+- [ ] **Collinear Hex Edge Batching (`src/grid.ts` / `src/hexGrid.ts`):** Optimize regular hex grid rendering by merging collinear hex edges across all three parallel axes (0°, +60°, -60° for flat-top; 90°, +30°, -30° for pointy-top) into single continuous `page.drawLine` calls using PDF `dashArray` patterns (dash = side length `s`, gap = `2s` corner-to-corner width, staggered by `1.5s` on alternating rows/columns; expanding sub-edge dash patterns into `[...subPattern, 2s]` when `pattern !== "solid"`), rather than emitting individual `drawLine` calls per hex edge.
+
 - [ ] Support fractional paper rows and columns (`page.rows` / `page.columns`, URL aliases `pr` / `pc`). For example, 2.5 rows should generate three physical rows of sheets, but fit the image and draw the grid within a 2.5-row printable canvas. Preserve overlap between adjoining sheets. Leave the unused portion of the final sheet blank and show a trim line for assembly. Apply the same rule to partial columns and show the trim boundary in the overview and template preview.
 
 - [x] Remove the single-option Image Placement and Grid Extent controls from the test page and display Overview as a global setting alongside the image and title.

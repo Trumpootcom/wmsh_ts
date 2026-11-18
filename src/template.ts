@@ -43,12 +43,13 @@ export function readTemplate(value: unknown, params = new URLSearchParams()) {
   if (source.schemaVersion !== 1) invalid("schemaVersion", "1");
   const sourceGrid = object(source.grid, "grid");
   const { template, grid, page } = applyOverrides(
-    { title: defaults.title, overview: false, template: source.name, ...source },
+    { title: defaults.title, overview: false, coordinates: false, template: source.name, ...source },
     { iso: sourceGrid.style === "iso", ...sourceGrid },
     object(source.page, "page"),
     params,
   );
   if (typeof template.overview !== "boolean") invalid("overview", "true or false");
+  if (typeof template.coordinates !== "boolean") invalid("coordinates", "true or false");
   if (typeof template.template !== "string" || !template.template.trim()) {
     invalid("template", "a non-empty string");
   }
@@ -99,7 +100,7 @@ export function readTemplate(value: unknown, params = new URLSearchParams()) {
   }
 
   return {
-    template: template.template, title: template.title.trim(), overview: template.overview, worldWidthFeet, style: style === "hex" ? "hex" as const : "rect" as const, iso, color, size, orientation,
+    template: template.template, title: template.title.trim(), overview: template.overview, coordinates: template.coordinates, worldWidthFeet, style: style === "hex" ? "hex" as const : "rect" as const, iso, color, size, orientation,
     pageWidth, pageHeight, margin, spacing, rows, columns, overlap: overlapInches * 72,
     mapWidth: (worldWidthFeet / 5) * spacing,
     rotation, isoAngle, offsetX, offsetY, adaptiveContrast: color === "contrast",
