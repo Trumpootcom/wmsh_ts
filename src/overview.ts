@@ -1,10 +1,18 @@
-import { BlendMode, LineCapStyle, clip, endPath, popGraphicsState, pushGraphicsState, rectangle, rgb, StandardFonts,
+import { BlendMode, LineCapStyle, clip, degrees, endPath, popGraphicsState, pushGraphicsState, rectangle, rgb, StandardFonts,
   type PDFDocument, type PDFImage, type PDFFont } from "pdf-lib";
 import { drawGrid } from "./grid";
 import type { HexView } from "./hexGrid";
 import { drawContrastGrid } from "./contrast";
 import type { readTemplate } from "./template";
 import { drawSheetBadge } from "./sheetBadge";
+import { drawCoordinateBorder } from "./coordinateBorder";
+
+const showPageCuts = false;
+const leftBarWidth = 2 * 72;
+const overviewCellHeadingFontSize = 14;
+const overviewLegendRowFontSize = 12;
+const overviewScalingRow1FontSize = 18;
+const overviewScalingRow2FontSize = 22;
 
 type Layout = {
   canvasWidth: number; canvasHeight: number;
@@ -26,16 +34,18 @@ export async function addOverview(
   const parchment = rgb(0.96, 0.92, 0.83);
   const ink = rgb(0.10, 0.14, 0.18);
   const black = rgb(0, 0, 0);
-  const edge = 24;
-  const legendHeight = 66;
   const margin = template.margin;
-  const factor = Math.min(
+  const currentFactor = Math.min(
     (pageWidth - 2 * margin) / layout.canvasWidth,
     (pageHeight - 2 * margin) / layout.canvasHeight,
   );
-  const width = layout.canvasWidth * factor;
-  const height = layout.canvasHeight * factor;
-  const left = (pageWidth - width) / 2;
+  const currentWidth = layout.canvasWidth * currentFactor;
+  const currentHeight = layout.canvasHeight * currentFactor;
+  const width = pageWidth - 3 * margin - leftBarWidth;
+  const shrinkRatio = width / currentWidth;
+  const factor = currentFactor * shrinkRatio;
+  const height = currentHeight * shrinkRatio;
+  const left = 2 * margin + leftBarWidth;
   const mapY = (pageHeight + height) / 2;
   const map = {
     left: layout.mapLeft * factor, top: layout.mapTop * factor,
@@ -72,8 +82,10 @@ export async function addOverview(
     }
   }
   page.drawRectangle({ x: left, y: mapY - height, width, height, borderColor: ink, borderWidth: 0.5 });
-  for (const line of cuts) page.drawLine({ ...line, thickness: 5, color: white });
-  for (const line of cuts) page.drawLine({ ...line, thickness: 1, color: black, dashArray: [0.1, 3], lineCap: LineCapStyle.Round });
+  if (showPageCuts) {
+    for (const line of cuts) page.drawLine({ ...line, thickness: 5, color: white });
+    for (const line of cuts) page.drawLine({ ...line, thickness: 1, color: black, dashArray: [0.1, 3], lineCap: LineCapStyle.Round });
+  }
 
   for (let row = 0; row < template.rows; row++) {
     for (let col = 0; col < template.columns; col++) {
@@ -86,27 +98,43 @@ export async function addOverview(
     }
   }
 
+  if (template.coordinates && template.style === "rect" && !template.iso && template.rotation === 0) {
+    drawCoordinateBorder(page, bold, {
+      pageWidth: layout.canvasWidth, pageHeight: layout.canvasHeight, margin: 0,
+      spacing: template.spacing, offsetX: template.offsetX, offsetY: template.offsetY,
+      sheetLeft: 0, sheetTop: 0, stepX: layout.stepX, stepY: layout.stepY,
+      canvasWidth: layout.canvasWidth, canvasHeight: layout.canvasHeight,
+      mapLeft: layout.mapLeft, mapTop: layout.mapTop, mapWidth: layout.mapWidth, mapHeight: layout.mapHeight,
+      row: 0, column: 0, scale: factor, pageOriginX: left, pageTop: mapY,
+    });
+  }
+
   const text = (label: string, x: number, y: number, size = 10, font = normal) =>
     page.drawText(label, { x, y, size, font, color: ink });
   const panel = (x: number, y: number, panelWidth: number, panelHeight: number) =>
     page.drawRectangle({ x, y, width: panelWidth, height: panelHeight, color: parchment, opacity: 0.88, borderColor: ink, borderWidth: 0.5 });
-  const titleWidth = pageWidth * 0.9;
-  const titleHeight = 46 * 0.8;
-  const titleX = (pageWidth - titleWidth) / 2;
-  const overlayInset = 1.5 * margin;
-  const titleTop = pageHeight - overlayInset;
-  panel(titleX, titleTop - titleHeight, titleWidth, titleHeight);
+  const titlePanelX = margin;
+  const titlePanelWidth = leftBarWidth;
+  const titlePanelY = margin;
+  const titlePanelHeight = pageHeight - 2 * margin;
+  panel(titlePanelX, titlePanelY, titlePanelWidth, titlePanelHeight);
   const title = Array.from(template.title, (character) => {
     try { bold.encodeText(character); return /[\r\n\t]/.test(character) ? " " : character; } catch { return "?"; }
   }).join("");
   let titleEnd = title.length;
-  const titleTextLimit = titleWidth - 24;
+  const titleColumnWidth = 30;
+  const titleTextLimit = titlePanelHeight - 16;
   while (titleEnd > 0 && bold.widthOfTextAtSize(title.slice(0, titleEnd) + (titleEnd < title.length ? "..." : ""), 17) > titleTextLimit) titleEnd--;
   const heading = titleEnd < title.length ? title.slice(0, titleEnd) + "..." : title;
-  const titleBaseline = titleTop - (titleHeight + bold.heightAtSize(17, { descender: false })) / 2;
-  text(heading, (pageWidth - bold.widthOfTextAtSize(heading, 17)) / 2, titleBaseline, 17, bold);
+  const titleSize = 17 * Math.min(1, titleTextLimit / Math.max(1, bold.widthOfTextAtSize(heading, 17)));
+  const titleWidth = bold.widthOfTextAtSize(heading, titleSize);
+  const titleFontHeight = bold.heightAtSize(titleSize);
+  page.drawText(heading, {
+    x: titlePanelX + (titleColumnWidth + titleFontHeight) / 2,
+    y: titlePanelY + (titlePanelHeight - titleWidth) / 2,
+    size: titleSize, font: bold, color: ink, rotate: degrees(90),
+  });
 
-  const footerY = overlayInset;
   const format = (value: number) => Number(value.toFixed(3)).toString();
   const dims = (w: number, h: number, unit: number) => `${(w / unit).toFixed(1)} x ${(h / unit).toFixed(1)}`;
   const feetUnit = template.spacing / 5;
@@ -119,31 +147,65 @@ export async function addOverview(
     `Grid: ${template.style}, ${template.color}, ${template.lineStyle.pattern} | ${format(template.lineStyle.thickness)} pt | opacity ${format(template.lineStyle.opacity)}${template.iso ? ` | ISO ${format(template.isoAngle)} deg` : ""}`,
     `Rotation: ${format(template.rotation)} deg | Offsets: ${format(template.offsetX)}, ${format(template.offsetY)} cells`,
   ];
-  const scaleWidth = 164;
-  const panelWidth = Math.min(6 * 72, pageWidth - 2 * edge - template.margin - scaleWidth);
-  const legendX = (pageWidth - panelWidth - template.margin - scaleWidth) / 2;
-  const scaleX = legendX + panelWidth + template.margin;
-  const columnWidth = (panelWidth - 32) / 2;
-  const drawColumn = (lines: string[], x: number) => {
-    lines.forEach((line, i) => {
-      const size = 9 * Math.min(1, columnWidth / normal.widthOfTextAtSize(line, 9));
-      text(line, x, footerY + legendHeight - 31 - i * 11, size);
+  const contentX = titlePanelX + titleColumnWidth;
+  const sectionHeight = titlePanelHeight / 3;
+  const dividerOpacity = 0.33;
+  page.drawLine({
+    start: { x: contentX, y: titlePanelY },
+    end: { x: contentX, y: titlePanelY + titlePanelHeight },
+    thickness: 0.5, color: ink, opacity: dividerOpacity,
+  });
+  for (let section = 1; section < 3; section++) {
+    const y = titlePanelY + section * sectionHeight;
+    page.drawLine({
+      start: { x: contentX, y },
+      end: { x: titlePanelX + titlePanelWidth, y },
+      thickness: 0.5, color: ink, opacity: dividerOpacity,
     });
-  };
-  panel(legendX, footerY, panelWidth, legendHeight);
-  text("MAP AND SHEET LEGEND", legendX + 10, footerY + legendHeight - 17, 10, bold);
-  drawColumn(paperLines, legendX + 10);
-  drawColumn(gridLines, legendX + 22 + columnWidth);
+  }
+  const legendHeading = "MAP AND SHEET LEGEND";
+  const legendHeadingSize = overviewCellHeadingFontSize;
+  const legendHeadingWidth = bold.widthOfTextAtSize(legendHeading, legendHeadingSize);
+  const firstSectionTop = titlePanelY + titlePanelHeight;
+  const firstSectionBottom = firstSectionTop - sectionHeight;
+  page.drawText(legendHeading, {
+    x: contentX + bold.heightAtSize(legendHeadingSize) + 3,
+    y: firstSectionBottom + (sectionHeight - legendHeadingWidth) / 2,
+    size: legendHeadingSize, font: bold, color: ink, rotate: degrees(90),
+  });
+  const legendRows = [...paperLines, ...gridLines];
+  let dataX = contentX + bold.heightAtSize(legendHeadingSize)*2;
+  legendRows.forEach((line) => {
+    const size = overviewLegendRowFontSize;
+    const fontHeight = normal.heightAtSize(size);
+    const x = dataX + fontHeight;
+    const y = firstSectionBottom + 5;
+    page.drawText(line, { x, y, size, font: normal, color: ink, rotate: degrees(90) });
+    dataX += fontHeight * 1.5;
+  });
 
-  const scaleHeight = 49;
-  const inches = (template.spacing / 72).toFixed(1);
-  const scaleLabel = `1 grid = ${inches} in = 5 feet`;
-  const scaleFontSize = 18 * Math.min(1, (scaleWidth - 20) / bold.widthOfTextAtSize(scaleLabel, 18));
-  const labelWidth = bold.widthOfTextAtSize(scaleLabel, scaleFontSize);
-  panel(scaleX, footerY, scaleWidth, scaleHeight);
-  const scaleHeading = "SCALE";
-  const headingSize = 10;
-  const headingWidth = bold.widthOfTextAtSize(scaleHeading, headingSize);
-  text(scaleHeading, scaleX + (scaleWidth - headingWidth) / 2, footerY + 34, headingSize, bold);
-  text(scaleLabel, scaleX + (scaleWidth - labelWidth) / 2, footerY + 10, scaleFontSize, bold);
+  const scalingHeading = "SCALING";
+  const scalingHeadingWidth = bold.widthOfTextAtSize(scalingHeading, overviewCellHeadingFontSize);
+  page.drawText(scalingHeading, {
+    x: contentX + bold.heightAtSize(overviewCellHeadingFontSize) + 3,
+    y: titlePanelY + (sectionHeight - scalingHeadingWidth) / 2,
+    size: overviewCellHeadingFontSize, font: bold, color: ink, rotate: degrees(90),
+  });
+  const scalingRows = [
+    `5 feet = ${(template.spacing / 72).toFixed(1)} inches`,
+    `${(layout.mapWidth / feetUnit).toFixed(1)} feet x ${(layout.mapHeight / feetUnit).toFixed(1)} feet`,
+  ];
+  const scalingRowFontSizes = [overviewScalingRow1FontSize, overviewScalingRow2FontSize];
+  let scalingDataX = contentX + bold.heightAtSize(overviewCellHeadingFontSize) * 2.5;
+  scalingRows.forEach((line, index) => {
+    const size = scalingRowFontSizes[index];
+    const fontHeight = normal.heightAtSize(size);
+    const lineWidth = normal.widthOfTextAtSize(line, size);
+    page.drawText(line, {
+      x: scalingDataX + fontHeight,
+      y: titlePanelY + (sectionHeight - lineWidth) / 2,
+      size, font: normal, color: ink, rotate: degrees(90),
+    });
+    scalingDataX += fontHeight * 2;
+  });
 }
