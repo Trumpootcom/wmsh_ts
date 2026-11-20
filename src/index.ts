@@ -103,7 +103,8 @@ async function metricsPage(request: Request, analyticsSql?: AnalyticsSQLBinding)
     });
   } catch (failure) {
     console.warn("Could not query render metrics.", failure);
-    return error("Metrics could not be loaded.", 503);
+    const detail = failure instanceof Error ? failure.message : String(failure);
+    return Response.json({ error: "Metrics could not be loaded.", detail: detail.slice(0, 500) }, { status: 503 });
   }
 }
 
