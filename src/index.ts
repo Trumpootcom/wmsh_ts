@@ -58,7 +58,7 @@ async function metricsPage(request: Request, analyticsSql?: AnalyticsSQLBinding,
   if (!analyticsSql) return error("Metrics are unavailable.", 503);
 
   try {
-    const storedResetAt = await database?.prepare(
+    const storedResetAt = await database?.withSession("first-primary").prepare(
       "SELECT reset_at FROM metrics_state WHERE id = 1",
     ).first<string>();
     const windowStart = Date.now() - 90 * 24 * 60 * 60 * 1000;
@@ -128,10 +128,11 @@ async function metricsPage(request: Request, analyticsSql?: AnalyticsSQLBinding,
 <p>Last reset: ${lastReset}</p>
 <form id="reset-form"><label for="reset-password">Admin password</label> <input id="reset-password" type="password" autocomplete="current-password" required> <button type="submit">Reset counters</button> <output id="reset-result" aria-live="polite"></output></form>
 <script>
-const resetNotice = sessionStorage.getItem("metrics-reset-notice");
+sessionStorage.removeItem("metrics-reset-notice");
+const resetNotice = sessionStorage.getItem("metrics-reset-notice-v2");
 if (resetNotice) {
   document.getElementById("reset-result").textContent = resetNotice;
-  sessionStorage.removeItem("metrics-reset-notice");
+  sessionStorage.removeItem("metrics-reset-notice-v2");
 }
 document.getElementById("reset-form").addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -147,7 +148,7 @@ document.getElementById("reset-form").addEventListener("submit", async (event) =
     });
     const result = await response.json();
     if (!response.ok) throw new Error(result.detail ? result.error + " " + result.detail : result.error || "Reset failed.");
-    sessionStorage.setItem("metrics-reset-notice", "Reset saved. Metrics now start from " + new Date(result.resetAt).toLocaleString() + ".");
+    sessionStorage.setItem("metrics-reset-notice-v2", "Reset saved. Metrics now start from " + new Date(result.resetAt).toLocaleString() + ".");
     output.textContent = "Reset saved. Reloading metrics…";
     window.setTimeout(() => window.location.reload(), 800);
   } catch (failure) {
@@ -187,10 +188,15 @@ async function resetMetrics(request: Request, database?: D1Database, secret?: st
   // events from the same second cannot reappear in the totals.
   const resetAt = new Date(Math.ceil(Date.now() / 1000) * 1000).toISOString();
   try {
-    await database.prepare(
+    const session = database.withSession("first-primary");
+    await session.prepare(
       "INSERT INTO metrics_state (id, reset_at) VALUES (1, ?) ON CONFLICT(id) DO UPDATE SET reset_at = excluded.reset_at",
     ).bind(resetAt).run();
-    return Response.json({ resetAt }, { headers: { "Cache-Control": "no-store" } });
+    const savedResetAt = await session.prepare(
+      "SELECT reset_at FROM metrics_state WHERE id = 1",
+    ).first<string>();
+    if (savedResetAt !== resetAt) throw new Error("D1 did not return the saved reset time.");
+    return Response.json({ resetAt: savedResetAt }, { headers: { "Cache-Control": "no-store" } });
   } catch (failure) {
     console.warn("Could not reset render metrics.", failure);
     const detail = failure instanceof Error ? failure.message : String(failure);
