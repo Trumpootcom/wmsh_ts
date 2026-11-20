@@ -5,6 +5,7 @@ import { decodeStaticWebp } from "./webp";
 const maxInputPixels = 12_000_000;
 const maxWorkingEdge = 2400;
 const pngSignature = [137, 80, 78, 71, 13, 10, 26, 10];
+const imageCompressionQuality = 75;
 
 export async function workingJpeg(buffer: ArrayBuffer): Promise<Uint8Array> {
   const bytes = new Uint8Array(buffer);
@@ -72,5 +73,5 @@ function resizeToJpeg(source: Uint8Array | Uint8ClampedArray, sourceWidth: numbe
       data[i + 3] = 255;
     }
   }
-  return Uint8Array.from(encode({ width, height, data }, 90).data);
+  return Uint8Array.from(encode({ width, height, data }, imageCompressionQuality).data);
 }
