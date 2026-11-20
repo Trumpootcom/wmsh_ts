@@ -64,6 +64,9 @@ async function metricsPage(request: Request, analyticsSql?: AnalyticsSQLBinding,
     const windowStart = Date.now() - 90 * 24 * 60 * 60 * 1000;
     const resetAtMillis = storedResetAt ? Date.parse(storedResetAt) : Number.NaN;
     const start = new Date(Number.isFinite(resetAtMillis) && resetAtMillis > windowStart ? resetAtMillis : windowStart);
+    const lastReset = Number.isFinite(resetAtMillis) && resetAtMillis > 0
+      ? new Date(resetAtMillis).toLocaleString("en-US", { timeZone: "UTC", timeZoneName: "short" })
+      : "Never";
     const result = await analyticsSql.query<{
       uploaded_image_bytes: number;
       generated_pdf_bytes: number;
@@ -122,8 +125,14 @@ async function metricsPage(request: Request, analyticsSql?: AnalyticsSQLBinding,
 <h1>WMSH metrics</h1>
 <table><thead><tr><th scope="col">Variable</th><th scope="col">Value (KB for size metrics)</th></tr></thead><tbody>${tableRows}</tbody></table>
 <p>Estimated values since ${start.toLocaleString("en-US", { timeZone: "UTC", timeZoneName: "short" })} (maximum 90 days); Analytics Engine sampling is applied.</p>
+<p>Last reset: ${lastReset}</p>
 <form id="reset-form"><label for="reset-password">Admin password</label> <input id="reset-password" type="password" autocomplete="current-password" required> <button type="submit">Reset counters</button> <output id="reset-result" aria-live="polite"></output></form>
 <script>
+const resetNotice = sessionStorage.getItem("metrics-reset-notice");
+if (resetNotice) {
+  document.getElementById("reset-result").textContent = resetNotice;
+  sessionStorage.removeItem("metrics-reset-notice");
+}
 document.getElementById("reset-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!window.confirm("Reset all displayed metrics to zero from now on?")) return;
@@ -138,6 +147,7 @@ document.getElementById("reset-form").addEventListener("submit", async (event) =
     });
     const result = await response.json();
     if (!response.ok) throw new Error(result.detail ? result.error + " " + result.detail : result.error || "Reset failed.");
+    sessionStorage.setItem("metrics-reset-notice", "Reset saved. Metrics now start from " + new Date(result.resetAt).toLocaleString() + ".");
     output.textContent = "Reset saved. Reloading metrics…";
     window.setTimeout(() => window.location.reload(), 800);
   } catch (failure) {
