@@ -60,7 +60,7 @@ async function metricsPage(request: Request, analyticsSql?: AnalyticsSQLBinding,
   try {
     const storedResetAt = await database?.withSession("first-primary").prepare(
       "SELECT reset_at FROM metrics_state WHERE id = 1",
-    ).first<string>();
+    ).first<string>("reset_at");
     const windowStart = Date.now() - 90 * 24 * 60 * 60 * 1000;
     const resetAtMillis = storedResetAt ? Date.parse(storedResetAt) : Number.NaN;
     const start = new Date(Number.isFinite(resetAtMillis) && resetAtMillis > windowStart ? resetAtMillis : windowStart);
@@ -194,7 +194,7 @@ async function resetMetrics(request: Request, database?: D1Database, secret?: st
     ).bind(resetAt).run();
     const savedResetAt = await session.prepare(
       "SELECT reset_at FROM metrics_state WHERE id = 1",
-    ).first<string>();
+    ).first<string>("reset_at");
     if (savedResetAt !== resetAt) throw new Error("D1 did not return the saved reset time.");
     return Response.json({ resetAt: savedResetAt }, { headers: { "Cache-Control": "no-store" } });
   } catch (failure) {
