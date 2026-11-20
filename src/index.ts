@@ -51,16 +51,24 @@ function recordHit(metrics: AnalyticsEngineDataset | undefined, page: "render" |
   }
 }
 
-async function metricsPage(request: Request, analyticsSql?: AnalyticsSQLBinding): Promise<Response> {
+async function metricsPage(request: Request, analyticsSql?: AnalyticsSQLBinding, database?: D1Database): Promise<Response> {
   if (request.method !== "GET" && request.method !== "HEAD") {
     return error("Use GET or HEAD /metrics to read metric totals.", 405, { Allow: "GET, HEAD" });
   }
   if (!analyticsSql) return error("Metrics are unavailable.", 503);
 
   try {
+    const storedResetAt = await database?.prepare(
+      "SELECT reset_at FROM metrics_state WHERE id = 1",
+    ).first<string>();
+    const windowStart = Date.now() - 90 * 24 * 60 * 60 * 1000;
+    const resetAtMillis = storedResetAt ? Date.parse(storedResetAt) : Number.NaN;
+    const start = new Date(Number.isFinite(resetAtMillis) && resetAtMillis > windowStart ? resetAtMillis : windowStart);
     const result = await analyticsSql.query<{
       uploaded_image_bytes: number;
       generated_pdf_bytes: number;
+      average_uploaded_image_bytes: number;
+      average_generated_pdf_bytes: number;
       render_hits: number;
       help_hits: number;
       urlhelp_hits: number;
@@ -69,16 +77,21 @@ async function metricsPage(request: Request, analyticsSql?: AnalyticsSQLBinding)
         SELECT
           sumIf(double1, blob1 = '') AS uploaded_image_bytes,
           sumIf(double2, blob1 = '') AS generated_pdf_bytes,
+          avgIf(double1, blob1 = '' AND double1 > 0) AS average_uploaded_image_bytes,
+          avgIf(double2, blob1 = '' AND double2 > 0) AS average_generated_pdf_bytes,
           sumIf(double1, blob1 = 'render') AS render_hits,
           sumIf(double1, blob1 = 'help') AS help_hits,
           sumIf(double1, blob1 = 'urlhelp') AS urlhelp_hits
         FROM events.analyticsEngine."wmsh_render_traffic"
-        WHERE timestamp >= NOW() - INTERVAL '90' DAY
+        WHERE timestamp >= $start
       `,
+      params: { start: start.toISOString() },
     });
     const values = result.data[0] ?? {
       uploaded_image_bytes: 0,
       generated_pdf_bytes: 0,
+      average_uploaded_image_bytes: 0,
+      average_generated_pdf_bytes: 0,
       render_hits: 0,
       help_hits: 0,
       urlhelp_hits: 0,
@@ -86,6 +99,8 @@ async function metricsPage(request: Request, analyticsSql?: AnalyticsSQLBinding)
     const rows = [
       ["uploaded_image_bytes", values.uploaded_image_bytes],
       ["generated_pdf_bytes", values.generated_pdf_bytes],
+      ["average_uploaded_image_bytes", values.average_uploaded_image_bytes],
+      ["average_generated_pdf_bytes", values.average_generated_pdf_bytes],
       ["render_hits", values.render_hits],
       ["help_hits", values.help_hits],
       ["urlhelp_hits", values.urlhelp_hits],
@@ -96,7 +111,29 @@ async function metricsPage(request: Request, analyticsSql?: AnalyticsSQLBinding)
 <style>body{font:16px system-ui,sans-serif;max-width:44rem;margin:3rem auto;padding:0 1rem;color:#27251f}h1{font-size:1.6rem}table{border-collapse:collapse;width:100%;text-align:left}th,td{padding:.65rem .8rem;border:1px solid #ccc}thead{background:#eee}td{text-align:right;font-variant-numeric:tabular-nums}p{color:#555;font-size:.9rem}</style>
 <h1>WMSH metrics</h1>
 <table><thead><tr><th scope="col">Variable</th><th scope="col">Value</th></tr></thead><tbody>${rows}</tbody></table>
-<p>Estimated totals for the last 90 days; Analytics Engine sampling is applied.</p>
+<p>Estimated values since ${start.toLocaleString("en-US", { timeZone: "UTC", timeZoneName: "short" })} (maximum 90 days); Analytics Engine sampling is applied.</p>
+<form id="reset-form"><label for="reset-password">Admin password</label> <input id="reset-password" type="password" autocomplete="current-password" required> <button type="submit">Reset counters</button> <output id="reset-result" aria-live="polite"></output></form>
+<script>
+document.getElementById("reset-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!window.confirm("Reset all displayed metrics to zero from now on?")) return;
+  const password = document.getElementById("reset-password").value;
+  const output = document.getElementById("reset-result");
+  output.textContent = "Resetting…";
+  try {
+    const response = await fetch("/metrics/reset", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password }),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "Reset failed.");
+    window.location.reload();
+  } catch (failure) {
+    output.textContent = failure instanceof Error ? failure.message : "Reset failed.";
+  }
+});
+</script>
 </html>`;
     return new Response(request.method === "HEAD" ? null : html, {
       headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" },
@@ -105,6 +142,35 @@ async function metricsPage(request: Request, analyticsSql?: AnalyticsSQLBinding)
     console.warn("Could not query render metrics.", failure);
     const detail = failure instanceof Error ? failure.message : String(failure);
     return Response.json({ error: "Metrics could not be loaded.", detail: detail.slice(0, 500) }, { status: 503 });
+  }
+}
+
+async function resetMetrics(request: Request, database?: D1Database, secret?: string): Promise<Response> {
+  if (request.method !== "POST") return error("Use POST /metrics/reset to reset counters.", 405, { Allow: "POST" });
+  if (!database || !secret) return error("Metric reset is not configured.", 503);
+
+  const body = await request.json().catch(() => null) as { password?: unknown } | null;
+  if (!body || typeof body !== "object" || typeof body.password !== "string") {
+    return error("Provide the admin password to reset counters.", 400);
+  }
+  const encoder = new TextEncoder();
+  const [suppliedHash, expectedHash] = await Promise.all([body.password, secret]
+    .map((value) => crypto.subtle.digest("SHA-256", encoder.encode(value))));
+  const suppliedBytes = new Uint8Array(suppliedHash);
+  const expectedBytes = new Uint8Array(expectedHash);
+  let difference = 0;
+  for (let i = 0; i < suppliedBytes.length; i++) difference |= suppliedBytes[i] ^ expectedBytes[i];
+  if (difference !== 0) return error("Incorrect admin password.", 403);
+
+  const resetAt = new Date().toISOString();
+  try {
+    await database.prepare(
+      "INSERT INTO metrics_state (id, reset_at) VALUES (1, ?) ON CONFLICT(id) DO UPDATE SET reset_at = excluded.reset_at",
+    ).bind(resetAt).run();
+    return Response.json({ resetAt }, { headers: { "Cache-Control": "no-store" } });
+  } catch (failure) {
+    console.warn("Could not reset render metrics.", failure);
+    return error("Counters could not be reset.", 503);
   }
 }
 
@@ -137,7 +203,8 @@ export default {
 
 async function handleRequest(request: Request, metrics?: AnalyticsEngineDataset, database?: D1Database, password?: string, analyticsSql?: AnalyticsSQLBinding): Promise<Response> {
   const { pathname, searchParams } = new URL(request.url);
-  if (pathname === "/metrics") return metricsPage(request, analyticsSql);
+  if (pathname === "/metrics") return metricsPage(request, analyticsSql, database);
+  if (pathname === "/metrics/reset") return resetMetrics(request, database, password);
   if (pathname === "/help" || pathname === "/url") {
     recordHit(metrics, pathname === "/help" ? "help" : "urlhelp");
     if (request.method !== "GET" && request.method !== "HEAD") {

@@ -30,7 +30,7 @@ The Worker reads JSON from the `templates` table in the `wmsh-ts` D1 database. E
 
 For the [Google Drive workflow](WORKFLOW.md), send an empty-body `POST /render` with a public Google Drive direct download link in the `imageUrl` query parameter. URL-encode the entire Drive link as one value. You can also send `template_id`, `wid`, and `title` in the query string. Supply one image source per request.
 
-Bind the database as `TEMPLATES` using its Database ID in `wrangler.jsonc`. Before deploying the binding, apply the migration to create the table and seed Default:
+Bind the database as `TEMPLATES` using its Database ID in `wrangler.jsonc`. Before deploying the binding, apply the migrations to create the tables, seed Default, and initialize the metrics reset timestamp:
 
 ```powershell
 npx.cmd wrangler d1 migrations apply wmsh-ts --remote
@@ -54,7 +54,7 @@ You can also open [public/test.html](public/test.html) directly from disk and ch
 
 Cloudflare Workers Analytics Engine records input image bytes, generated PDF bytes, and request hits in `wmsh_render_traffic`. Bytes from an accepted image field or completed Drive download count even if rendering later fails. Generated PDF bytes measure the response body prepared by the Worker. Hit counts are recorded for requests to `/render`, `/help`, and `/url` (the URL parameter help page), including requests rejected by those routes. The byte totals exclude multipart and HTTP overhead, help pages, and static assets.
 
-`GET /metrics` displays estimated totals for the five metrics over the last 90 days. It reads the dataset through the Worker's Analytics SQL binding.
+`GET /metrics` displays estimated totals for the byte and hit metrics, plus the average uploaded image size and generated PDF size, over the last 90 days. Averages exclude zero-byte events. It reads the dataset through the Worker's Analytics SQL binding. Use **Reset counters** on that page and the `TEMPLATE_PASSWORD` to start counting from zero; reset state is stored in D1 and Analytics Engine history is retained.
 
 Run this through the [Analytics Engine SQL API](https://developers.cloudflare.com/analytics/analytics-engine/sql-api/) to see daily totals in decimal MB. Multiply by the sampling interval to account for sampled data.
 
