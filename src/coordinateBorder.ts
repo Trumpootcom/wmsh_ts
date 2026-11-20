@@ -115,7 +115,7 @@ export function drawCoordinateBorder(page: PDFPage, font: PDFFont, options: Bord
     const cellBackground = altBorderFreq > 0 && columnNumber % altBorderFreq === 0 ? backgroundAltColor : backgroundColor;
     page.drawRectangle({ x: cellLeft, y: topY, width: drawSpacing, height: bar, color: cellBackground, borderColor, borderWidth: 0.5 * scale });
     page.drawRectangle({ x: cellLeft, y: bottomY, width: drawSpacing, height: bar, color: cellBackground, borderColor, borderWidth: 0.5 * scale });
-    const distance = `${(index - firstCellX) * 5}`;
+    const distance = `${(index - firstCellX+1) * 5}`;
     const distanceWidth = font.widthOfTextAtSize(distance, distanceSize) * distanceHorizontalScaleRatio;
     const coordinateX = cellLeft + bar * 0.18;
     const distanceX = cellLeft + drawSpacing - bar * 0.18 - distanceWidth;
@@ -147,7 +147,7 @@ export function drawCoordinateBorder(page: PDFPage, font: PDFFont, options: Bord
       const rowNumber = index - firstCellY + 1;
       const cellBackground = altBorderFreq > 0 && rowNumber % altBorderFreq === 0 ? backgroundAltColor : backgroundColor;
       page.drawRectangle({ x, y: centerY - drawSpacing / 2, width: bar, height: drawSpacing, color: cellBackground, borderColor, borderWidth: 0.5 * scale });
-      const distance = `${(index - firstCellY) * 5}`;
+      const distance = `${(index - firstCellY+1) * 5}`;
       const stripCenterX = x + bar * 1.3;
       const rowBottom = centerY - drawSpacing / 2;
       const distanceLength = font.widthOfTextAtSize(distance, distanceSize) * distanceHorizontalScaleRatio;
