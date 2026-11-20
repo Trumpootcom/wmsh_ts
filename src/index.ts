@@ -96,21 +96,31 @@ async function metricsPage(request: Request, analyticsSql?: AnalyticsSQLBinding,
       help_hits: 0,
       urlhelp_hits: 0,
     };
-    const rows = [
-      ["uploaded_image_bytes", values.uploaded_image_bytes],
-      ["generated_pdf_bytes", values.generated_pdf_bytes],
-      ["average_uploaded_image_bytes", values.average_uploaded_image_bytes],
-      ["average_generated_pdf_bytes", values.average_generated_pdf_bytes],
+    const byteMetrics = new Set([
+      "uploaded_image_kb",
+      "generated_pdf_kb",
+      "average_uploaded_image_kb",
+      "average_generated_pdf_kb",
+    ]);
+    const rows: Array<[string, number]> = [
+      ["uploaded_image_kb", values.uploaded_image_bytes],
+      ["generated_pdf_kb", values.generated_pdf_bytes],
+      ["average_uploaded_image_kb", values.average_uploaded_image_bytes],
+      ["average_generated_pdf_kb", values.average_generated_pdf_bytes],
       ["render_hits", values.render_hits],
       ["help_hits", values.help_hits],
       ["urlhelp_hits", values.urlhelp_hits],
-    ].map(([name, value]) => `<tr><th scope="row">${name}</th><td>${Number(value ?? 0).toLocaleString("en-US")}</td></tr>`).join("");
+    ];
+    const tableRows = rows.map(([name, value]) => {
+      const divisor = byteMetrics.has(name) ? 1000 : 1;
+      return `<tr><th scope="row">${name}</th><td>${Math.floor(Number(value ?? 0) / divisor).toLocaleString("en-US")}</td></tr>`;
+    }).join("");
     const html = `<!doctype html>
 <html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width">
 <title>WMSH metrics</title>
 <style>body{font:16px system-ui,sans-serif;max-width:44rem;margin:3rem auto;padding:0 1rem;color:#27251f}h1{font-size:1.6rem}table{border-collapse:collapse;width:100%;text-align:left}th,td{padding:.65rem .8rem;border:1px solid #ccc}thead{background:#eee}td{text-align:right;font-variant-numeric:tabular-nums}p{color:#555;font-size:.9rem}</style>
 <h1>WMSH metrics</h1>
-<table><thead><tr><th scope="col">Variable</th><th scope="col">Value</th></tr></thead><tbody>${rows}</tbody></table>
+<table><thead><tr><th scope="col">Variable</th><th scope="col">Value (KB for size metrics)</th></tr></thead><tbody>${tableRows}</tbody></table>
 <p>Estimated values since ${start.toLocaleString("en-US", { timeZone: "UTC", timeZoneName: "short" })} (maximum 90 days); Analytics Engine sampling is applied.</p>
 <form id="reset-form"><label for="reset-password">Admin password</label> <input id="reset-password" type="password" autocomplete="current-password" required> <button type="submit">Reset counters</button> <output id="reset-result" aria-live="polite"></output></form>
 <script>
@@ -127,8 +137,9 @@ document.getElementById("reset-form").addEventListener("submit", async (event) =
       body: JSON.stringify({ password }),
     });
     const result = await response.json();
-    if (!response.ok) throw new Error(result.error || "Reset failed.");
-    window.location.reload();
+    if (!response.ok) throw new Error(result.detail ? result.error + " " + result.detail : result.error || "Reset failed.");
+    output.textContent = "Reset saved. Reloading metrics…";
+    window.setTimeout(() => window.location.reload(), 800);
   } catch (failure) {
     output.textContent = failure instanceof Error ? failure.message : "Reset failed.";
   }
@@ -162,7 +173,9 @@ async function resetMetrics(request: Request, database?: D1Database, secret?: st
   for (let i = 0; i < suppliedBytes.length; i++) difference |= suppliedBytes[i] ^ expectedBytes[i];
   if (difference !== 0) return error("Incorrect admin password.", 403);
 
-  const resetAt = new Date().toISOString();
+  // Analytics timestamps are second-granularity; advance the cutoff so pre-reset
+  // events from the same second cannot reappear in the totals.
+  const resetAt = new Date(Math.ceil(Date.now() / 1000) * 1000).toISOString();
   try {
     await database.prepare(
       "INSERT INTO metrics_state (id, reset_at) VALUES (1, ?) ON CONFLICT(id) DO UPDATE SET reset_at = excluded.reset_at",
@@ -170,7 +183,8 @@ async function resetMetrics(request: Request, database?: D1Database, secret?: st
     return Response.json({ resetAt }, { headers: { "Cache-Control": "no-store" } });
   } catch (failure) {
     console.warn("Could not reset render metrics.", failure);
-    return error("Counters could not be reset.", 503);
+    const detail = failure instanceof Error ? failure.message : String(failure);
+    return Response.json({ error: "Counters could not be reset.", detail: detail.slice(0, 300) }, { status: 503 });
   }
 }
 
