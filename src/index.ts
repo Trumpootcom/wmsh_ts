@@ -67,11 +67,11 @@ async function metricsPage(request: Request, analyticsSql?: AnalyticsSQLBinding)
     }>({
       query: `
         SELECT
-          sum(if(blob1 = '', double1, 0)) AS uploaded_image_bytes,
-          sum(if(blob1 = '', double2, 0)) AS generated_pdf_bytes,
-          sum(if(blob1 = 'render', double1, 0)) AS render_hits,
-          sum(if(blob1 = 'help', double1, 0)) AS help_hits,
-          sum(if(blob1 = 'urlhelp', double1, 0)) AS urlhelp_hits
+          sumIf(double1, blob1 = '') AS uploaded_image_bytes,
+          sumIf(double2, blob1 = '') AS generated_pdf_bytes,
+          sumIf(double1, blob1 = 'render') AS render_hits,
+          sumIf(double1, blob1 = 'help') AS help_hits,
+          sumIf(double1, blob1 = 'urlhelp') AS urlhelp_hits
         FROM events.analyticsEngine."wmsh_render_traffic"
         WHERE timestamp >= NOW() - INTERVAL '90' DAY
       `,
