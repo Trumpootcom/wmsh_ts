@@ -16,6 +16,9 @@
       "dataset": "wmsh_render_traffic"
     }
   ],
+  "analytics": {
+    "binding": "ANALYTICS_SQL"
+  },
   "assets": {
     "binding": "ASSETS",
     "directory": "./public",

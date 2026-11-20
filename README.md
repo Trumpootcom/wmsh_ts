@@ -52,7 +52,9 @@ You can also open [public/test.html](public/test.html) directly from disk and ch
 
 ## Render traffic
 
-Cloudflare Workers Analytics Engine records input image bytes and generated PDF bytes in `wmsh_render_traffic`. Bytes from an accepted image field or completed Drive download count even if rendering later fails. Generated PDF bytes measure the response body prepared by the Worker. The totals exclude multipart and HTTP overhead, help pages, and static assets.
+Cloudflare Workers Analytics Engine records input image bytes, generated PDF bytes, and request hits in `wmsh_render_traffic`. Bytes from an accepted image field or completed Drive download count even if rendering later fails. Generated PDF bytes measure the response body prepared by the Worker. Hit counts are recorded for requests to `/render`, `/help`, and `/url` (the URL parameter help page), including requests rejected by those routes. The byte totals exclude multipart and HTTP overhead, help pages, and static assets.
+
+`GET /metrics` displays estimated totals for the five metrics over the last 90 days. It reads the dataset through the Worker's Analytics SQL binding.
 
 Run this through the [Analytics Engine SQL API](https://developers.cloudflare.com/analytics/analytics-engine/sql-api/) to see daily totals in decimal MB. Multiply by the sampling interval to account for sampled data.
 
@@ -65,4 +67,18 @@ FROM wmsh_render_traffic
 WHERE timestamp >= NOW() - INTERVAL '7' DAY
 GROUP BY day
 ORDER BY day DESC
+```
+
+Use this query for daily request hits by route. Analytics Engine stores the route name in `blob1` and the hit value in `double1`; multiply by `_sample_interval` to account for sampled data.
+
+```sql
+SELECT
+  toStartOfInterval(timestamp, INTERVAL '1' DAY) AS day,
+  blob1 AS route,
+  sum(double1 * _sample_interval) AS hits
+FROM wmsh_render_traffic
+WHERE timestamp >= NOW() - INTERVAL '7' DAY
+  AND blob1 IN ('render', 'help', 'urlhelp')
+GROUP BY day, route
+ORDER BY day DESC, route
 ```

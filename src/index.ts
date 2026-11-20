@@ -43,8 +43,72 @@ function recordBytes(metrics: AnalyticsEngineDataset | undefined, imageBytes: nu
   }
 }
 
+function recordHit(metrics: AnalyticsEngineDataset | undefined, page: "render" | "help" | "urlhelp") {
+  try {
+    metrics?.writeDataPoint({ blobs: [page], doubles: [1] });
+  } catch (failure) {
+    console.warn("Could not record request hit metric.", failure);
+  }
+}
+
+async function metricsPage(request: Request, analyticsSql?: AnalyticsSQLBinding): Promise<Response> {
+  if (request.method !== "GET" && request.method !== "HEAD") {
+    return error("Use GET or HEAD /metrics to read metric totals.", 405, { Allow: "GET, HEAD" });
+  }
+  if (!analyticsSql) return error("Metrics are unavailable.", 503);
+
+  try {
+    const result = await analyticsSql.query<{
+      uploaded_image_bytes: number;
+      generated_pdf_bytes: number;
+      render_hits: number;
+      help_hits: number;
+      urlhelp_hits: number;
+    }>({
+      query: `
+        SELECT
+          sumIf(double1 * _sample_interval, blob1 = '') AS uploaded_image_bytes,
+          sumIf(double2 * _sample_interval, blob1 = '') AS generated_pdf_bytes,
+          sumIf(double1 * _sample_interval, blob1 = 'render') AS render_hits,
+          sumIf(double1 * _sample_interval, blob1 = 'help') AS help_hits,
+          sumIf(double1 * _sample_interval, blob1 = 'urlhelp') AS urlhelp_hits
+        FROM events.analyticsEngine."wmsh_render_traffic"
+        WHERE timestamp >= NOW() - INTERVAL '90' DAY
+      `,
+    });
+    const values = result.data[0] ?? {
+      uploaded_image_bytes: 0,
+      generated_pdf_bytes: 0,
+      render_hits: 0,
+      help_hits: 0,
+      urlhelp_hits: 0,
+    };
+    const rows = [
+      ["uploaded_image_bytes", values.uploaded_image_bytes],
+      ["generated_pdf_bytes", values.generated_pdf_bytes],
+      ["render_hits", values.render_hits],
+      ["help_hits", values.help_hits],
+      ["urlhelp_hits", values.urlhelp_hits],
+    ].map(([name, value]) => `<tr><th scope="row">${name}</th><td>${Number(value ?? 0).toLocaleString("en-US")}</td></tr>`).join("");
+    const html = `<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width">
+<title>WMSH metrics</title>
+<style>body{font:16px system-ui,sans-serif;max-width:44rem;margin:3rem auto;padding:0 1rem;color:#27251f}h1{font-size:1.6rem}table{border-collapse:collapse;width:100%;text-align:left}th,td{padding:.65rem .8rem;border:1px solid #ccc}thead{background:#eee}td{text-align:right;font-variant-numeric:tabular-nums}p{color:#555;font-size:.9rem}</style>
+<h1>WMSH metrics</h1>
+<table><thead><tr><th scope="col">Variable</th><th scope="col">Value</th></tr></thead><tbody>${rows}</tbody></table>
+<p>Estimated totals for the last 90 days; Analytics Engine sampling is applied.</p>
+</html>`;
+    return new Response(request.method === "HEAD" ? null : html, {
+      headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" },
+    });
+  } catch (failure) {
+    console.warn("Could not query render metrics.", failure);
+    return error("Metrics could not be loaded.", 503);
+  }
+}
+
 export default {
-  async fetch(request: Request, env?: { ASSETS?: Fetcher; RENDER_METRICS?: AnalyticsEngineDataset; TEMPLATES?: D1Database; TEMPLATE_PASSWORD?: string }): Promise<Response> {
+  async fetch(request: Request, env?: { ASSETS?: Fetcher; RENDER_METRICS?: AnalyticsEngineDataset; ANALYTICS_SQL?: AnalyticsSQLBinding; TEMPLATES?: D1Database; TEMPLATE_PASSWORD?: string }): Promise<Response> {
     // Standalone test.html sends Origin: null when opened from disk.
     const { pathname } = new URL(request.url);
     if (pathname === "/test") {
@@ -61,18 +125,20 @@ export default {
           "Access-Control-Allow-Methods": pathname === "/templates" ? "GET, POST" : templateRead ? "GET" : "POST",
           "Access-Control-Allow-Headers": "Content-Type",
         } })
-        : await handleRequest(request, env?.RENDER_METRICS, env?.TEMPLATES, env?.TEMPLATE_PASSWORD);
+        : await handleRequest(request, env?.RENDER_METRICS, env?.TEMPLATES, env?.TEMPLATE_PASSWORD, env?.ANALYTICS_SQL);
       response.headers.set("Access-Control-Allow-Origin", "null");
       response.headers.append("Vary", "Origin");
       return response;
     }
-    return handleRequest(request, env?.RENDER_METRICS, env?.TEMPLATES, env?.TEMPLATE_PASSWORD);
+    return handleRequest(request, env?.RENDER_METRICS, env?.TEMPLATES, env?.TEMPLATE_PASSWORD, env?.ANALYTICS_SQL);
   },
 };
 
-async function handleRequest(request: Request, metrics?: AnalyticsEngineDataset, database?: D1Database, password?: string): Promise<Response> {
+async function handleRequest(request: Request, metrics?: AnalyticsEngineDataset, database?: D1Database, password?: string, analyticsSql?: AnalyticsSQLBinding): Promise<Response> {
   const { pathname, searchParams } = new URL(request.url);
+  if (pathname === "/metrics") return metricsPage(request, analyticsSql);
   if (pathname === "/help" || pathname === "/url") {
+    recordHit(metrics, pathname === "/help" ? "help" : "urlhelp");
     if (request.method !== "GET" && request.method !== "HEAD") {
       return error(`Use GET ${pathname} to read the documentation.`, 405, { Allow: "GET, HEAD" });
     }
@@ -121,6 +187,7 @@ async function handleRequest(request: Request, metrics?: AnalyticsEngineDataset,
   if (pathname !== "/render") {
     return error("Route not found. See GET /help for usage.", 404);
   }
+  recordHit(metrics, "render");
   if (request.method !== "POST") {
     return error("Use POST with an image upload or imageUrl.", 405, { Allow: "POST" });
   }
