@@ -201,9 +201,9 @@ HTTP REQUEST AND RESPONSE
 
 IMAGE NORMALIZATION
 
-  Static PNG and WebP images up to 12 megapixels are converted to a working JPEG.
-  The longest edge is capped at 2400 pixels and transparency prints
-  as white. JPEG uploads use their original pixels.
+  JPEG, static PNG, and WebP images up to 12 megapixels are converted to a
+  working JPEG. The longest edge is capped at 2400 pixels and transparency
+  prints as white. The working JPEG uses the configured compression quality.
 
 TEMPLATE OVERRIDES
 

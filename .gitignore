@@ -4,3 +4,8 @@ worker-configuration.d.ts
 .dev.vars*
 .env*
 smoke.pdf
+/*.[pP][dD][fF]
+/*.[pP][nN][gG]
+/*.[jJ][pP][gG]
+/*.[jJ][pP][eE][gG]
+/*.[wW][eE][bB][pP]

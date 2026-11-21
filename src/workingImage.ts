@@ -1,15 +1,26 @@
 import UPNG from "@pdf-lib/upng";
-import { encode } from "jpeg-js";
+import { decode, encode } from "jpeg-js";
 import { decodeStaticWebp } from "./webp";
 
 const maxInputPixels = 12_000_000;
 const maxWorkingEdge = 2400;
 const pngSignature = [137, 80, 78, 71, 13, 10, 26, 10];
-const imageCompressionQuality = 75;
+const imageCompressionQuality = 50;
 
 export async function workingJpeg(buffer: ArrayBuffer): Promise<Uint8Array> {
   const bytes = new Uint8Array(buffer);
-  if (bytes[0] === 255 && bytes[1] === 216) return bytes;
+  if (bytes[0] === 255 && bytes[1] === 216) {
+    let image;
+    try {
+      image = decode(buffer, { useTArray: true, maxResolutionInMP: 12, maxMemoryUsageInMB: 80 });
+    } catch {
+      throw new Error("JPEG images must be decodable within the 12-megapixel and decoder memory limits.");
+    }
+    if (!image.width || !image.height || image.width * image.height > maxInputPixels) {
+      throw new Error("JPEG images must have valid dimensions and be at most 12 megapixels.");
+    }
+    return resizeToJpeg(image.data, image.width, image.height);
+  }
   const header = new DataView(buffer);
   if (bytes.length >= 12 && header.getUint32(0) === 0x52494646 && header.getUint32(8) === 0x57454250) {
     const image = await decodeStaticWebp(buffer, maxInputPixels);
